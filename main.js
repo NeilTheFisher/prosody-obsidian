@@ -298,7 +298,12 @@ var ProsodySettingsTab = class extends import_obsidian2.PluginSettingTab {
       const hint = containerEl.createDiv({ cls: "prosody-hint" });
       hint.createEl("strong", { text: "Audio Recorder is off. " });
       hint.createSpan({
-        text: "Enable Obsidian's built-in Audio Recorder to record voice notes into your vault; Prosody transcribes them automatically."
+        text: "Prosody uses Obsidian's built-in Audio Recorder to capture voice notes into your vault; it transcribes them automatically."
+      });
+      const enable = hint.createEl("button", { text: "Enable", cls: "mod-cta" });
+      enable.addEventListener("click", () => {
+        this.host.enableRecorder();
+        rerender();
       });
     }
     this.dropdown(
@@ -1179,6 +1184,9 @@ var ProsodyPlugin = class extends import_obsidian9.Plugin {
   recorderEnabled() {
     const internal = this.app.internalPlugins;
     return internal?.getPluginById("audio-recorder")?.enabled ?? true;
+  }
+  enableRecorder() {
+    this.app.internalPlugins?.getPluginById("audio-recorder")?.enable();
   }
   recommendRecorder() {
     if (this.settings.recorderNudgeDismissed || this.recorderEnabled()) return;

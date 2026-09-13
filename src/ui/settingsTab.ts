@@ -90,7 +90,12 @@ export class ProsodySettingsTab extends PluginSettingTab {
       const hint = containerEl.createDiv({ cls: "prosody-hint" });
       hint.createEl("strong", { text: "Audio Recorder is off. " });
       hint.createSpan({
-        text: "Enable Obsidian's built-in Audio Recorder to record voice notes into your vault; Prosody transcribes them automatically.",
+        text: "Prosody uses Obsidian's built-in Audio Recorder to capture voice notes into your vault; it transcribes them automatically.",
+      });
+      const enable = hint.createEl("button", { text: "Enable", cls: "mod-cta" });
+      enable.addEventListener("click", () => {
+        this.host.enableRecorder();
+        rerender();
       });
     }
 

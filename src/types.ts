@@ -108,4 +108,5 @@ export interface PluginHost {
   saveSettings(): Promise<void>;
   vaultPath(): string;
   recorderEnabled(): boolean;
+  enableRecorder(): void;
 }

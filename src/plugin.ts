@@ -36,6 +36,10 @@ export class ProsodyPlugin extends Plugin implements PluginHost {
     return internal?.getPluginById("audio-recorder")?.enabled ?? true;
   }
 
+  enableRecorder(): void {
+    (this.app as AppWithInternalPlugins).internalPlugins?.getPluginById("audio-recorder")?.enable();
+  }
+
   private recommendRecorder(): void {
     if (this.settings.recorderNudgeDismissed || this.recorderEnabled()) return;
 
