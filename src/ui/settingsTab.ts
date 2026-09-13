@@ -1,6 +1,6 @@
 import { PluginSettingTab, Setting, setIcon } from "obsidian";
-import type { App, Plugin } from "obsidian";
-import { makePresetAgents } from "../constants.js";
+import type { App, ExtraButtonComponent, Plugin } from "obsidian";
+import { DEFAULT_PROMPT, makePresetAgents } from "../constants.js";
 import type { Agent, PluginHost } from "../types.js";
 import { renderAgentFields } from "./agentFields.js";
 
@@ -177,15 +177,30 @@ export class ProsodySettingsTab extends PluginSettingTab {
       );
 
     containerEl.createEl("h3", { text: "Advanced" });
+    let resetPrompt: ExtraButtonComponent | undefined;
     new Setting(containerEl)
       .setName("Prompt")
       .setDesc("Instructions sent with the transcript.")
+      .setClass("prosody-prompt-setting")
       .addTextArea((text) => {
         text.inputEl.rows = 5;
         text.setValue(settings.prompt).onChange(async (value) => {
           settings.prompt = value;
-          await this.host.saveSettings();
+          await this.persist();
+          resetPrompt?.setDisabled(value === DEFAULT_PROMPT);
         });
+      })
+      .addExtraButton((button) => {
+        resetPrompt = button;
+        button
+          .setIcon("rotate-ccw")
+          .setTooltip("Reset to default")
+          .setDisabled(settings.prompt === DEFAULT_PROMPT)
+          .onClick(async () => {
+            settings.prompt = DEFAULT_PROMPT;
+            await this.persist();
+            rerender();
+          });
       });
     this.text(
       containerEl,

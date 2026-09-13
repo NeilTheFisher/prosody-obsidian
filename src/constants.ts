@@ -12,7 +12,9 @@ export const FENCES = ["prosody", "voice-sync"] as const;
 
 export const DEFAULT_PROMPT =
   "The attached text is a voice-note transcript. Summarize it as concise markdown: " +
-  "a one-line gist, then key points as bullets, then any action items. Return only the summary.";
+  "a one-line gist, then the key points as bullets. If there are follow-ups or todos to " +
+  'check off for later, add a short "Action items" section using markdown checkboxes. ' +
+  "Do not invent tasks. Return only the summary.";
 
 type AgentPreset = Pick<Agent, "id" | "displayName" | "command" | "args">;
 

@@ -469,6 +469,30 @@
   font-size: var(--font-ui-small);
 }
 
+.prosody-settings .prosody-prompt-setting {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.prosody-settings .prosody-prompt-setting .setting-item-info {
+  margin-right: 0;
+}
+
+.prosody-settings .prosody-prompt-setting .setting-item-control {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.prosody-settings .prosody-prompt-setting textarea {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 7em;
+  resize: none;
+}
+
 .prosody-notice-actions {
   display: flex;
   gap: 6px;

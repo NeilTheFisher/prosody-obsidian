@@ -37,7 +37,7 @@ var CLIENT_INFO = {
   version: "0.1.0"
 };
 var FENCES = ["prosody", "voice-sync"];
-var DEFAULT_PROMPT = "The attached text is a voice-note transcript. Summarize it as concise markdown: a one-line gist, then key points as bullets, then any action items. Return only the summary.";
+var DEFAULT_PROMPT = 'The attached text is a voice-note transcript. Summarize it as concise markdown: a one-line gist, then the key points as bullets. If there are follow-ups or todos to check off for later, add a short "Action items" section using markdown checkboxes. Do not invent tasks. Return only the summary.';
 var AGENT_PRESETS = [
   { id: "opencode", displayName: "OpenCode", command: "opencode", args: ["acp"] },
   { id: "claude-code", displayName: "Claude Code", command: "claude-agent-acp", args: [] },
@@ -370,11 +370,20 @@ var ProsodySettingsTab = class extends import_obsidian2.PluginSettingTab {
       })
     );
     containerEl.createEl("h3", { text: "Advanced" });
-    new import_obsidian2.Setting(containerEl).setName("Prompt").setDesc("Instructions sent with the transcript.").addTextArea((text) => {
+    let resetPrompt;
+    new import_obsidian2.Setting(containerEl).setName("Prompt").setDesc("Instructions sent with the transcript.").setClass("prosody-prompt-setting").addTextArea((text) => {
       text.inputEl.rows = 5;
       text.setValue(settings.prompt).onChange(async (value) => {
         settings.prompt = value;
-        await this.host.saveSettings();
+        await this.persist();
+        resetPrompt?.setDisabled(value === DEFAULT_PROMPT);
+      });
+    }).addExtraButton((button) => {
+      resetPrompt = button;
+      button.setIcon("rotate-ccw").setTooltip("Reset to default").setDisabled(settings.prompt === DEFAULT_PROMPT).onClick(async () => {
+        settings.prompt = DEFAULT_PROMPT;
+        await this.persist();
+        rerender();
       });
     });
     this.text(
