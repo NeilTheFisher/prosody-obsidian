@@ -27,7 +27,7 @@ __export(main_exports, {
 module.exports = __toCommonJS(main_exports);
 
 // src/plugin.ts
-var import_obsidian8 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 
 // src/constants.ts
 var PROTOCOL_VERSION = 1;
@@ -37,8 +37,6 @@ var CLIENT_INFO = {
   version: "0.1.0"
 };
 var FENCES = ["prosody", "voice-sync"];
-var SUMMARY_START = "<!-- prosody-summary:start -->";
-var SUMMARY_END = "<!-- prosody-summary:end -->";
 var DEFAULT_PROMPT = "The attached text is a voice-note transcript. Summarize it as concise markdown: a one-line gist, then key points as bullets, then any action items. Return only the summary.";
 var AGENT_PRESETS = [
   { id: "opencode", displayName: "OpenCode", command: "opencode", args: ["acp"] },
@@ -69,7 +67,11 @@ var DEFAULT_SETTINGS = {
   windowsWslMode: true,
   wslDistribution: "",
   debug: false,
-  recorderNudgeDismissed: false
+  recorderNudgeDismissed: false,
+  summaryOpen: true,
+  summaryExpanded: false,
+  transcriptOpen: false,
+  transcriptExpanded: false
 };
 
 // src/ui/settingsTab.ts
@@ -299,32 +301,48 @@ var ProsodySettingsTab = class extends import_obsidian2.PluginSettingTab {
         text: "Enable Obsidian's built-in Audio Recorder to record voice notes into your vault; Prosody transcribes them automatically."
       });
     }
-    new import_obsidian2.Setting(containerEl).setName("Default agent").setDesc("Used to summarize transcripts.").addDropdown((dropdown) => {
-      for (const agent of settings.agents)
-        dropdown.addOption(agent.id, agent.displayName || agent.id);
-      dropdown.setValue(settings.defaultAgentId).onChange(async (value) => {
+    this.dropdown(
+      containerEl,
+      "Default agent",
+      "Used to summarize transcripts.",
+      settings.agents.map((agent) => [agent.id, agent.displayName || agent.id]),
+      () => settings.defaultAgentId,
+      (value) => {
         settings.defaultAgentId = value;
-        await this.host.saveSettings();
-      });
-    });
-    new import_obsidian2.Setting(containerEl).setName("Permissions").setDesc("Whether agents may use tools while summarizing. Auto-deny is safer.").addDropdown(
-      (dropdown) => dropdown.addOption("deny", "Auto-deny").addOption("allow", "Auto-allow").setValue(settings.permissionMode).onChange(async (value) => {
+      }
+    );
+    this.dropdown(
+      containerEl,
+      "Permissions",
+      "Whether agents may use tools while summarizing. Auto-deny is safer.",
+      [
+        ["deny", "Auto-deny"],
+        ["allow", "Auto-allow"]
+      ],
+      () => settings.permissionMode,
+      (value) => {
         settings.permissionMode = value === "allow" ? "allow" : "deny";
-        await this.host.saveSettings();
-      })
+      }
     );
     containerEl.createEl("h3", { text: "Windows Subsystem for Linux" });
-    new import_obsidian2.Setting(containerEl).setName("Enable WSL mode").setDesc("Run agents inside WSL. Recommended for agents that don't work in native Windows.").addToggle(
-      (toggle) => toggle.setValue(settings.windowsWslMode).onChange(async (value) => {
+    this.toggle(
+      containerEl,
+      "Enable WSL mode",
+      "Run agents inside WSL. Recommended for agents that don't work in native Windows.",
+      () => settings.windowsWslMode,
+      (value) => {
         settings.windowsWslMode = value;
-        await this.host.saveSettings();
-      })
+      }
     );
-    new import_obsidian2.Setting(containerEl).setName("WSL distribution").setDesc("Specific WSL distribution name (leave empty for default). Example: Ubuntu").addText(
-      (text) => text.setPlaceholder("Leave empty for default").setValue(settings.wslDistribution).onChange(async (value) => {
+    this.text(
+      containerEl,
+      "WSL distribution",
+      "Specific WSL distribution name (leave empty for default). Example: Ubuntu",
+      () => settings.wslDistribution,
+      (value) => {
         settings.wslDistribution = value.trim();
-        await this.host.saveSettings();
-      })
+      },
+      "Leave empty for default"
     );
     containerEl.createEl("h3", { text: "Preset agents" });
     for (const agent of settings.agents.filter((candidate) => candidate.preset)) {
@@ -359,17 +377,23 @@ var ProsodySettingsTab = class extends import_obsidian2.PluginSettingTab {
         await this.host.saveSettings();
       });
     });
-    new import_obsidian2.Setting(containerEl).setName("Working directory").setDesc("Empty = vault root. For WSL agents this is passed as --cd.").addText(
-      (text) => text.setValue(settings.cwd).onChange(async (value) => {
+    this.text(
+      containerEl,
+      "Working directory",
+      "Empty = vault root. For WSL agents this is passed as --cd.",
+      () => settings.cwd,
+      (value) => {
         settings.cwd = value.trim();
-        await this.host.saveSettings();
-      })
+      }
     );
-    new import_obsidian2.Setting(containerEl).setName("Debug logging").addToggle(
-      (toggle) => toggle.setValue(settings.debug).onChange(async (value) => {
+    this.toggle(
+      containerEl,
+      "Debug logging",
+      "",
+      () => settings.debug,
+      (value) => {
         settings.debug = value;
-        await this.host.saveSettings();
-      })
+      }
     );
     new import_obsidian2.Setting(containerEl).setName("Reset preset agents").setDesc("Restore the built-in agent list. Custom agents are kept.").addButton(
       (button) => button.setButtonText("Reset").onClick(async () => {
@@ -380,10 +404,39 @@ var ProsodySettingsTab = class extends import_obsidian2.PluginSettingTab {
       })
     );
   }
+  async persist() {
+    await this.host.saveSettings();
+  }
+  toggle(container, name, desc, get, set) {
+    new import_obsidian2.Setting(container).setName(name).setDesc(desc).addToggle(
+      (toggle) => toggle.setValue(get()).onChange(async (value) => {
+        set(value);
+        await this.persist();
+      })
+    );
+  }
+  text(container, name, desc, get, set, placeholder) {
+    new import_obsidian2.Setting(container).setName(name).setDesc(desc).addText((text) => {
+      if (placeholder) text.setPlaceholder(placeholder);
+      text.setValue(get()).onChange(async (value) => {
+        set(value);
+        await this.persist();
+      });
+    });
+  }
+  dropdown(container, name, desc, options, get, set) {
+    new import_obsidian2.Setting(container).setName(name).setDesc(desc).addDropdown((dropdown) => {
+      for (const [value, label] of options) dropdown.addOption(value, label);
+      dropdown.setValue(get()).onChange(async (value) => {
+        set(value);
+        await this.persist();
+      });
+    });
+  }
 };
 
 // src/ui/widget.ts
-var import_obsidian7 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 
 // src/acp/session.ts
 var import_obsidian4 = require("obsidian");
@@ -759,13 +812,57 @@ var ProsodyModal = class extends import_obsidian6.Modal {
   }
 };
 
+// src/ui/section.ts
+var import_obsidian7 = require("obsidian");
+function buildSection(wrap, options) {
+  const details = wrap.createEl("details", { cls: "vs-head " + options.cls });
+  details.open = options.open;
+  details.toggleClass("is-expanded", options.expanded);
+  const head = details.createEl("summary", { cls: "vs-summary" });
+  const chevron = head.createSpan({ cls: "vs-chevron" });
+  (0, import_obsidian7.setIcon)(chevron, "chevron-right");
+  const icon = head.createSpan({ cls: "vs-ico" });
+  (0, import_obsidian7.setIcon)(icon, options.icon);
+  head.createSpan({ cls: "vs-label", text: options.label });
+  if (options.meta) head.createSpan({ cls: "vs-meta", text: options.meta });
+  const expand = head.createEl("button", {
+    cls: "vs-expand",
+    attr: { type: "button", "aria-label": "Toggle section height" }
+  });
+  const expandIcon = expand.createSpan({ cls: "vs-btn-ico" });
+  const refreshExpand = () => {
+    const isExpanded = details.hasClass("is-expanded");
+    (0, import_obsidian7.setIcon)(expandIcon, isExpanded ? "chevrons-up" : "chevrons-down");
+    (0, import_obsidian7.setTooltip)(expand, isExpanded ? "Collapse height" : "Expand height");
+    expand.disabled = !details.open;
+  };
+  details.addEventListener("toggle", () => {
+    options.onOpenChange(details.open);
+    refreshExpand();
+  });
+  expand.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const next = !details.hasClass("is-expanded");
+    details.toggleClass("is-expanded", next);
+    options.onExpandChange(next);
+    refreshExpand();
+  });
+  const scroller = details.createDiv({ cls: "vs-body" });
+  const body = scroller.createDiv({ cls: "vs-text" });
+  refreshExpand();
+  return { details, body, scroller, expand };
+}
+
 // src/ui/widget.ts
-var ProsodyView = class extends import_obsidian7.MarkdownRenderChild {
+var ProsodyView = class extends import_obsidian8.MarkdownRenderChild {
   constructor(el, host, source, sourcePath) {
     super(el);
     __publicField(this, "host");
     __publicField(this, "audioName");
     __publicField(this, "sourcePath");
+    __publicField(this, "sidecarPath", "");
+    __publicField(this, "sidecar", null);
     this.host = host;
     this.audioName = (source.trim().split("\n")[0] ?? "").trim();
     this.sourcePath = sourcePath;
@@ -793,7 +890,7 @@ var ProsodyView = class extends import_obsidian7.MarkdownRenderChild {
   state(wrap, icon, text, isError = false) {
     const el = wrap.createDiv({ cls: "vs-state" + (isError ? " vs-error" : "") });
     const iconEl = el.createSpan({ cls: "vs-state-ico" });
-    (0, import_obsidian7.setIcon)(iconEl, icon);
+    (0, import_obsidian8.setIcon)(iconEl, icon);
     el.createSpan({ text });
   }
   async onload() {
@@ -810,23 +907,24 @@ var ProsodyView = class extends import_obsidian7.MarkdownRenderChild {
       this.state(wrap, "file-warning", "Audio not found in this vault: " + this.audioName, true);
       return;
     }
-    const audio = wrap.createEl("audio", { attr: { controls: "", preload: "metadata" } });
-    audio.src = this.host.app.vault.adapter.getResourcePath(file.path);
-    const data = await this.readSidecar(file);
-    if (!data?.words?.length) {
+    this.sidecarPath = file.path.replace(/\.[^.]+$/, ".json");
+    this.sidecar = await this.readSidecar();
+    if (!this.sidecar?.words?.length) {
       this.state(wrap, "hourglass", "Transcript is on its way once the local service finishes.");
       return;
     }
-    const statusEl = this.renderTranscript(wrap, data, audio);
-    this.buildToolbar(wrap, data, statusEl);
+    const audio = wrap.createEl("audio", { attr: { controls: "", preload: "metadata" } });
+    audio.src = this.host.app.vault.adapter.getResourcePath(file.path);
+    this.renderTranscript(wrap, this.sidecar, audio);
+    const summary = this.renderSummary(wrap, this.sidecar);
+    this.buildToolbar(wrap, summary);
   }
-  async readSidecar(file) {
-    const sidecarPath = file.path.replace(/\.[^.]+$/, ".json");
+  async readSidecar() {
     try {
-      if (!await this.host.app.vault.adapter.exists(sidecarPath)) return null;
-      return JSON.parse(await this.host.app.vault.adapter.read(sidecarPath));
+      if (!await this.host.app.vault.adapter.exists(this.sidecarPath)) return null;
+      return JSON.parse(await this.host.app.vault.adapter.read(this.sidecarPath));
     } catch (err) {
-      console.error("prosody: failed to read sidecar", sidecarPath, err);
+      console.error("prosody: failed to read sidecar", this.sidecarPath, err);
       return null;
     }
   }
@@ -835,16 +933,36 @@ var ProsodyView = class extends import_obsidian7.MarkdownRenderChild {
     const lastSegment = data.segments?.at(-1);
     const meta = [`${words.length.toLocaleString()} words`];
     if (lastSegment) meta.push(fmtClock(lastSegment.end));
-    const details = wrap.createEl("details", { cls: "vs-head" });
-    const summary = details.createEl("summary", { cls: "vs-summary" });
-    const chevron = summary.createSpan({ cls: "vs-chevron" });
-    (0, import_obsidian7.setIcon)(chevron, "chevron-right");
-    const icon = summary.createSpan({ cls: "vs-ico" });
-    (0, import_obsidian7.setIcon)(icon, "audio-lines");
-    summary.createSpan({ cls: "vs-label", text: "Transcript" });
-    summary.createSpan({ cls: "vs-meta", text: meta.join(" \xB7 ") });
-    const body = details.createDiv({ cls: "vs-body" });
-    const text = body.createDiv({ cls: "vs-text" });
+    const section = buildSection(
+      wrap,
+      this.sectionOptions("transcript", {
+        cls: "vs-transcript-head",
+        icon: "audio-lines",
+        label: "Transcript",
+        meta: meta.join(" \xB7 ")
+      })
+    );
+    this.renderWords(section.body, words, audio);
+  }
+  sectionOptions(kind, base) {
+    const settings = this.host.settings;
+    const openKey = kind === "transcript" ? "transcriptOpen" : "summaryOpen";
+    const expandedKey = kind === "transcript" ? "transcriptExpanded" : "summaryExpanded";
+    return {
+      ...base,
+      open: settings[openKey],
+      expanded: settings[expandedKey],
+      onOpenChange: (open) => {
+        settings[openKey] = open;
+        void this.host.saveSettings();
+      },
+      onExpandChange: (expanded) => {
+        settings[expandedKey] = expanded;
+        void this.host.saveSettings();
+      }
+    };
+  }
+  renderWords(text, words, audio) {
     const hasSpeakers = words.some((word) => typeof word.speaker === "number");
     const spans = [];
     let container = text;
@@ -895,9 +1013,29 @@ var ProsodyView = class extends import_obsidian7.MarkdownRenderChild {
     };
     this.registerDomEvent(audio, "timeupdate", sync);
     this.registerDomEvent(audio, "seeked", sync);
-    return text;
   }
-  buildToolbar(wrap, data, statusEl) {
+  renderSummary(wrap, data) {
+    const section = buildSection(
+      wrap,
+      this.sectionOptions("summary", {
+        cls: "vs-summary-head",
+        icon: "sparkles",
+        label: "Summary"
+      })
+    );
+    section.body.addClass("vs-summary-body");
+    if (data.summary) {
+      this.renderMarkdown(section.body, data.summary);
+    } else {
+      section.details.hidden = true;
+    }
+    return section;
+  }
+  renderMarkdown(el, markdown) {
+    el.empty();
+    void import_obsidian8.MarkdownRenderer.render(this.host.app, markdown, el, this.sourcePath, this);
+  }
+  buildToolbar(wrap, summaryView) {
     const settings = this.host.settings;
     const agent = currentAgent(settings);
     const bar = wrap.createDiv({ cls: "vs-bar" });
@@ -905,13 +1043,13 @@ var ProsodyView = class extends import_obsidian7.MarkdownRenderChild {
       cls: "vs-model",
       attr: { type: "button", "aria-label": "Model" }
     });
-    (0, import_obsidian7.setTooltip)(modelButton, "Model used for summaries");
+    (0, import_obsidian8.setTooltip)(modelButton, "Model used for summaries");
     const modelText = modelButton.createSpan({
       cls: "vs-model-label",
       text: modelLabel(settings, agent)
     });
     const modelChevron = modelButton.createSpan({ cls: "vs-btn-ico" });
-    (0, import_obsidian7.setIcon)(modelChevron, "chevron-down");
+    (0, import_obsidian8.setIcon)(modelChevron, "chevron-down");
     modelButton.addEventListener("click", () => {
       openModelPicker(this.host, agent, () => {
         modelText.setText(modelLabel(settings, agent));
@@ -921,111 +1059,100 @@ var ProsodyView = class extends import_obsidian7.MarkdownRenderChild {
       cls: "vs-summarize",
       attr: { type: "button", "aria-label": "Summarize transcript" }
     });
-    (0, import_obsidian7.setTooltip)(summarize, "Summarize transcript");
+    (0, import_obsidian8.setTooltip)(summarize, "Summarize transcript");
     const summarizeIcon = summarize.createSpan({ cls: "vs-btn-ico" });
-    (0, import_obsidian7.setIcon)(summarizeIcon, "sparkles");
+    (0, import_obsidian8.setIcon)(summarizeIcon, "sparkles");
     summarize.addEventListener("click", () => {
-      void this.summarize(summarize, summarizeIcon, data.text ?? "", statusEl);
+      void this.summarize(summarize, summarizeIcon, summaryView);
     });
     const cog = bar.createEl("button", {
       cls: "vs-cog",
       attr: { type: "button", "aria-label": "Summary settings" }
     });
-    (0, import_obsidian7.setTooltip)(cog, "Summary settings");
+    (0, import_obsidian8.setTooltip)(cog, "Summary settings");
     const cogIcon = cog.createSpan({ cls: "vs-btn-ico" });
-    (0, import_obsidian7.setIcon)(cogIcon, "cog");
+    (0, import_obsidian8.setIcon)(cogIcon, "cog");
     cog.addEventListener("click", () => {
       new ProsodyModal(this.host.app, this.host).open();
     });
   }
-  async summarize(button, iconEl, transcript, statusEl) {
+  async summarize(button, iconEl, view) {
     const settings = this.host.settings;
+    const transcript = this.sidecar?.text ?? "";
     if (!transcript.trim()) {
-      new import_obsidian7.Notice("Prosody: nothing to summarize");
+      new import_obsidian8.Notice("Prosody: nothing to summarize");
       return;
     }
     const agent = currentAgent(settings);
     if (!agent) {
-      new import_obsidian7.Notice("Prosody: no agent configured. Open settings.");
+      new import_obsidian8.Notice("Prosody: no agent configured. Open settings.");
       return;
     }
-    if (!isRemote(agent) && !import_obsidian7.Platform.isDesktopApp) {
-      new import_obsidian7.Notice("Prosody: this agent is desktop-only. Add a ws:// agent for mobile.");
+    if (!isRemote(agent) && !import_obsidian8.Platform.isDesktopApp) {
+      new import_obsidian8.Notice("Prosody: this agent is desktop-only. Add a ws:// agent for mobile.");
       return;
     }
     button.disabled = true;
     button.addClass("is-busy");
-    (0, import_obsidian7.setTooltip)(button, "Summarizing\u2026");
-    (0, import_obsidian7.setIcon)(iconEl, "loader-2");
-    statusEl.setText("");
-    statusEl.addClass("vs-live");
+    (0, import_obsidian8.setTooltip)(button, "Summarizing\u2026");
+    (0, import_obsidian8.setIcon)(iconEl, "loader-2");
+    this.reveal(view);
+    view.body.addClass("vs-live");
+    view.body.setText("Summarizing\u2026");
     let accumulated = "";
     try {
       const info = await runSummary(agent, settings, this.host.vaultPath(), transcript, (chunk) => {
         accumulated += chunk;
-        statusEl.setText(accumulated);
-        statusEl.scrollTop = statusEl.scrollHeight;
+        view.body.setText(accumulated);
+        view.body.scrollTop = view.body.scrollHeight;
       });
       if (info.models.length) {
         settings.modelsCache[agent.id] = info;
         await this.host.saveSettings();
       }
       const summary = accumulated.trim();
+      view.body.removeClass("vs-live");
       if (summary) {
-        await this.insertSummary(summary);
-        new import_obsidian7.Notice("Prosody: summary added");
+        await this.persistSummary(summary);
+        this.renderMarkdown(view.body, summary);
+        new import_obsidian8.Notice("Prosody: summary added");
       } else {
-        new import_obsidian7.Notice("Prosody: the agent returned nothing");
+        view.body.setText("");
+        new import_obsidian8.Notice("Prosody: the agent returned nothing");
       }
     } catch (err) {
       console.error("prosody: summarize failed", err);
-      new import_obsidian7.Notice(
+      view.body.removeClass("vs-live");
+      if (!this.sidecar?.summary) {
+        view.details.hidden = true;
+      } else {
+        this.renderMarkdown(view.body, this.sidecar.summary);
+      }
+      new import_obsidian8.Notice(
         "Prosody: summarize failed \u2014 " + (err instanceof Error ? err.message : String(err))
       );
     } finally {
       button.disabled = false;
       button.removeClass("is-busy");
-      (0, import_obsidian7.setIcon)(iconEl, "sparkles");
-      (0, import_obsidian7.setTooltip)(button, "Summarize transcript");
-      statusEl.removeClass("vs-live");
-      statusEl.setText("");
+      (0, import_obsidian8.setIcon)(iconEl, "sparkles");
+      (0, import_obsidian8.setTooltip)(button, "Summarize transcript");
     }
   }
-  async insertSummary(summary) {
-    const file = this.host.app.vault.getAbstractFileByPath(this.sourcePath);
-    if (!(file instanceof import_obsidian7.TFile)) return;
-    const callout = "> [!summary]- Summary\n" + summary.split("\n").map((line) => line ? "> " + line : ">").join("\n");
-    const block = `${SUMMARY_START}
-${callout}
-${SUMMARY_END}`;
-    const content = await this.host.app.vault.read(file);
-    const marker = new RegExp(SUMMARY_START + "[\\s\\S]*?" + SUMMARY_END);
-    let updated;
-    if (marker.test(content)) {
-      updated = content.replace(marker, block);
-    } else {
-      const anchor = this.findFenceAnchor(content);
-      if (anchor === -1) {
-        updated = content.replace(/\s*$/, "") + "\n\n" + block + "\n";
-      } else {
-        const close = content.indexOf("\n```", anchor);
-        const insertAt = close === -1 ? content.length : close + 4;
-        updated = content.slice(0, insertAt) + "\n\n" + block + "\n" + content.slice(insertAt).replace(/^\n+/, "");
-      }
-    }
-    await this.host.app.vault.modify(file, updated);
+  reveal(view) {
+    view.details.hidden = false;
+    view.details.removeClass("vs-reveal");
+    void view.details.offsetWidth;
+    view.details.addClass("vs-reveal");
   }
-  findFenceAnchor(content) {
-    for (const fence of FENCES) {
-      const at = content.indexOf("```" + fence + "\n" + this.audioName);
-      if (at !== -1) return at;
-    }
-    return -1;
+  async persistSummary(summary) {
+    const data = { ...this.sidecar, summary };
+    this.sidecar = data;
+    await this.host.app.vault.adapter.write(this.sidecarPath, JSON.stringify(data));
   }
 };
 
 // src/plugin.ts
-var ProsodyPlugin = class extends import_obsidian8.Plugin {
+var ProsodyPlugin = class extends import_obsidian9.Plugin {
   constructor() {
     super(...arguments);
     __publicField(this, "settings", DEFAULT_SETTINGS);
@@ -1049,7 +1176,7 @@ var ProsodyPlugin = class extends import_obsidian8.Plugin {
     const recorder = this.app.internalPlugins?.getPluginById(
       "audio-recorder"
     );
-    const notice = new import_obsidian8.Notice("", 0);
+    const notice = new import_obsidian9.Notice("", 0);
     notice.messageEl.createDiv({
       text: "Prosody needs Obsidian's built-in Audio Recorder to capture voice notes."
     });
@@ -1068,7 +1195,7 @@ var ProsodyPlugin = class extends import_obsidian8.Plugin {
   }
   vaultPath() {
     const adapter = this.app.vault.adapter;
-    return adapter instanceof import_obsidian8.FileSystemAdapter ? adapter.getBasePath() : "";
+    return adapter instanceof import_obsidian9.FileSystemAdapter ? adapter.getBasePath() : "";
   }
   async saveSettings() {
     await this.saveData(this.settings);

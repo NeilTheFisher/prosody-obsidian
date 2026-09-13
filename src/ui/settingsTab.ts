@@ -6,6 +6,8 @@ import { renderAgentFields } from "./agentFields.js";
 
 type HostPlugin = Plugin & PluginHost;
 
+type Option = [value: string, label: string];
+
 function renderAgentRow(
   container: HTMLElement,
   host: HostPlugin,
@@ -92,54 +94,50 @@ export class ProsodySettingsTab extends PluginSettingTab {
       });
     }
 
-    new Setting(containerEl)
-      .setName("Default agent")
-      .setDesc("Used to summarize transcripts.")
-      .addDropdown((dropdown) => {
-        for (const agent of settings.agents)
-          dropdown.addOption(agent.id, agent.displayName || agent.id);
-        dropdown.setValue(settings.defaultAgentId).onChange(async (value) => {
-          settings.defaultAgentId = value;
-          await this.host.saveSettings();
-        });
-      });
-
-    new Setting(containerEl)
-      .setName("Permissions")
-      .setDesc("Whether agents may use tools while summarizing. Auto-deny is safer.")
-      .addDropdown((dropdown) =>
-        dropdown
-          .addOption("deny", "Auto-deny")
-          .addOption("allow", "Auto-allow")
-          .setValue(settings.permissionMode)
-          .onChange(async (value) => {
-            settings.permissionMode = value === "allow" ? "allow" : "deny";
-            await this.host.saveSettings();
-          }),
-      );
+    this.dropdown(
+      containerEl,
+      "Default agent",
+      "Used to summarize transcripts.",
+      settings.agents.map((agent): Option => [agent.id, agent.displayName || agent.id]),
+      () => settings.defaultAgentId,
+      (value) => {
+        settings.defaultAgentId = value;
+      },
+    );
+    this.dropdown(
+      containerEl,
+      "Permissions",
+      "Whether agents may use tools while summarizing. Auto-deny is safer.",
+      [
+        ["deny", "Auto-deny"],
+        ["allow", "Auto-allow"],
+      ],
+      () => settings.permissionMode,
+      (value) => {
+        settings.permissionMode = value === "allow" ? "allow" : "deny";
+      },
+    );
 
     containerEl.createEl("h3", { text: "Windows Subsystem for Linux" });
-    new Setting(containerEl)
-      .setName("Enable WSL mode")
-      .setDesc("Run agents inside WSL. Recommended for agents that don't work in native Windows.")
-      .addToggle((toggle) =>
-        toggle.setValue(settings.windowsWslMode).onChange(async (value) => {
-          settings.windowsWslMode = value;
-          await this.host.saveSettings();
-        }),
-      );
-    new Setting(containerEl)
-      .setName("WSL distribution")
-      .setDesc("Specific WSL distribution name (leave empty for default). Example: Ubuntu")
-      .addText((text) =>
-        text
-          .setPlaceholder("Leave empty for default")
-          .setValue(settings.wslDistribution)
-          .onChange(async (value) => {
-            settings.wslDistribution = value.trim();
-            await this.host.saveSettings();
-          }),
-      );
+    this.toggle(
+      containerEl,
+      "Enable WSL mode",
+      "Run agents inside WSL. Recommended for agents that don't work in native Windows.",
+      () => settings.windowsWslMode,
+      (value) => {
+        settings.windowsWslMode = value;
+      },
+    );
+    this.text(
+      containerEl,
+      "WSL distribution",
+      "Specific WSL distribution name (leave empty for default). Example: Ubuntu",
+      () => settings.wslDistribution,
+      (value) => {
+        settings.wslDistribution = value.trim();
+      },
+      "Leave empty for default",
+    );
 
     containerEl.createEl("h3", { text: "Preset agents" });
 
@@ -155,6 +153,7 @@ export class ProsodySettingsTab extends PluginSettingTab {
     }
 
     for (const agent of customs) renderAgentRow(containerEl, this.host, agent, rerender);
+
     new Setting(containerEl)
       .setName("New custom agent")
       .setDesc("Register any ACP-compatible agent, command, or ws:// URL.")
@@ -188,31 +187,100 @@ export class ProsodySettingsTab extends PluginSettingTab {
           await this.host.saveSettings();
         });
       });
-    new Setting(containerEl)
-      .setName("Working directory")
-      .setDesc("Empty = vault root. For WSL agents this is passed as --cd.")
-      .addText((text) =>
-        text.setValue(settings.cwd).onChange(async (value) => {
-          settings.cwd = value.trim();
-          await this.host.saveSettings();
-        }),
-      );
-    new Setting(containerEl).setName("Debug logging").addToggle((toggle) =>
-      toggle.setValue(settings.debug).onChange(async (value) => {
-        settings.debug = value;
-        await this.host.saveSettings();
-      }),
+    this.text(
+      containerEl,
+      "Working directory",
+      "Empty = vault root. For WSL agents this is passed as --cd.",
+      () => settings.cwd,
+      (value) => {
+        settings.cwd = value.trim();
+      },
     );
+    this.toggle(
+      containerEl,
+      "Debug logging",
+      "",
+      () => settings.debug,
+      (value) => {
+        settings.debug = value;
+      },
+    );
+
     new Setting(containerEl)
       .setName("Reset preset agents")
       .setDesc("Restore the built-in agent list. Custom agents are kept.")
       .addButton((button) =>
         button.setButtonText("Reset").onClick(async () => {
           const kept = settings.agents.filter((agent) => !agent.preset);
+
           settings.agents = [...makePresetAgents(), ...kept];
           await this.host.saveSettings();
           rerender();
         }),
       );
+  }
+
+  private async persist(): Promise<void> {
+    await this.host.saveSettings();
+  }
+
+  private toggle(
+    container: HTMLElement,
+    name: string,
+    desc: string,
+    get: () => boolean,
+    set: (value: boolean) => void,
+  ): void {
+    new Setting(container)
+      .setName(name)
+      .setDesc(desc)
+      .addToggle((toggle) =>
+        toggle.setValue(get()).onChange(async (value) => {
+          set(value);
+          await this.persist();
+        }),
+      );
+  }
+
+  private text(
+    container: HTMLElement,
+    name: string,
+    desc: string,
+    get: () => string,
+    set: (value: string) => void,
+    placeholder?: string,
+  ): void {
+    new Setting(container)
+      .setName(name)
+      .setDesc(desc)
+      .addText((text) => {
+        if (placeholder) text.setPlaceholder(placeholder);
+
+        text.setValue(get()).onChange(async (value) => {
+          set(value);
+          await this.persist();
+        });
+      });
+  }
+
+  private dropdown(
+    container: HTMLElement,
+    name: string,
+    desc: string,
+    options: Option[],
+    get: () => string,
+    set: (value: string) => void,
+  ): void {
+    new Setting(container)
+      .setName(name)
+      .setDesc(desc)
+      .addDropdown((dropdown) => {
+        for (const [value, label] of options) dropdown.addOption(value, label);
+
+        dropdown.setValue(get()).onChange(async (value) => {
+          set(value);
+          await this.persist();
+        });
+      });
   }
 }

@@ -10,10 +10,6 @@ export const CLIENT_INFO = {
 
 export const FENCES = ["prosody", "voice-sync"] as const;
 
-export const SUMMARY_START = "<!-- prosody-summary:start -->";
-
-export const SUMMARY_END = "<!-- prosody-summary:end -->";
-
 export const DEFAULT_PROMPT =
   "The attached text is a voice-note transcript. Summarize it as concise markdown: " +
   "a one-line gist, then key points as bullets, then any action items. Return only the summary.";
@@ -52,4 +48,8 @@ export const DEFAULT_SETTINGS: ProsodySettings = {
   wslDistribution: "",
   debug: false,
   recorderNudgeDismissed: false,
+  summaryOpen: true,
+  summaryExpanded: false,
+  transcriptOpen: false,
+  transcriptExpanded: false,
 };

@@ -1,15 +1,24 @@
-import { MarkdownRenderChild, Notice, Platform, TFile, setIcon, setTooltip } from "obsidian";
+import {
+  MarkdownRenderChild,
+  MarkdownRenderer,
+  Notice,
+  Platform,
+  setIcon,
+  setTooltip,
+} from "obsidian";
 import { runSummary } from "../acp/session.js";
-import { FENCES, SUMMARY_END, SUMMARY_START } from "../constants.js";
-import type { PluginHost, Sidecar } from "../types.js";
+import type { PluginHost, Sidecar, Word } from "../types.js";
 import { currentAgent, fmtClock, isRemote, modelLabel } from "../util.js";
 import { openModelPicker } from "./modelPicker.js";
 import { ProsodyModal } from "./modal.js";
+import { buildSection, type Section, type SectionOptions } from "./section.js";
 
 export class ProsodyView extends MarkdownRenderChild {
   private host: PluginHost;
   private audioName: string;
   private sourcePath: string;
+  private sidecarPath = "";
+  private sidecar: Sidecar | null = null;
 
   constructor(el: HTMLElement, host: PluginHost, source: string, sourcePath: string) {
     super(el);
@@ -71,54 +80,79 @@ export class ProsodyView extends MarkdownRenderChild {
       return;
     }
 
-    const audio = wrap.createEl("audio", { attr: { controls: "", preload: "metadata" } });
-    audio.src = this.host.app.vault.adapter.getResourcePath(file.path);
+    this.sidecarPath = file.path.replace(/\.[^.]+$/, ".json");
+    this.sidecar = await this.readSidecar();
 
-    const data = await this.readSidecar(file);
-
-    if (!data?.words?.length) {
+    if (!this.sidecar?.words?.length) {
       this.state(wrap, "hourglass", "Transcript is on its way once the local service finishes.");
 
       return;
     }
 
-    const statusEl = this.renderTranscript(wrap, data, audio);
-    this.buildToolbar(wrap, data, statusEl);
+    const audio = wrap.createEl("audio", { attr: { controls: "", preload: "metadata" } });
+    audio.src = this.host.app.vault.adapter.getResourcePath(file.path);
+
+    this.renderTranscript(wrap, this.sidecar, audio);
+    const summary = this.renderSummary(wrap, this.sidecar);
+    this.buildToolbar(wrap, summary);
   }
 
-  private async readSidecar(file: TFile): Promise<Sidecar | null> {
-    const sidecarPath = file.path.replace(/\.[^.]+$/, ".json");
-
+  private async readSidecar(): Promise<Sidecar | null> {
     try {
-      if (!(await this.host.app.vault.adapter.exists(sidecarPath))) return null;
+      if (!(await this.host.app.vault.adapter.exists(this.sidecarPath))) return null;
 
-      return JSON.parse(await this.host.app.vault.adapter.read(sidecarPath)) as Sidecar;
+      return JSON.parse(await this.host.app.vault.adapter.read(this.sidecarPath)) as Sidecar;
     } catch (err) {
-      console.error("prosody: failed to read sidecar", sidecarPath, err);
+      console.error("prosody: failed to read sidecar", this.sidecarPath, err);
 
       return null;
     }
   }
 
-  private renderTranscript(wrap: HTMLElement, data: Sidecar, audio: HTMLAudioElement): HTMLElement {
+  private renderTranscript(wrap: HTMLElement, data: Sidecar, audio: HTMLAudioElement): void {
     const words = data.words ?? [];
     const lastSegment = data.segments?.at(-1);
     const meta = [`${words.length.toLocaleString()} words`];
 
     if (lastSegment) meta.push(fmtClock(lastSegment.end));
 
-    const details = wrap.createEl("details", { cls: "vs-head" });
-    const summary = details.createEl("summary", { cls: "vs-summary" });
-    const chevron = summary.createSpan({ cls: "vs-chevron" });
-    setIcon(chevron, "chevron-right");
-    const icon = summary.createSpan({ cls: "vs-ico" });
-    setIcon(icon, "audio-lines");
-    summary.createSpan({ cls: "vs-label", text: "Transcript" });
-    summary.createSpan({ cls: "vs-meta", text: meta.join(" · ") });
+    const section = buildSection(
+      wrap,
+      this.sectionOptions("transcript", {
+        cls: "vs-transcript-head",
+        icon: "audio-lines",
+        label: "Transcript",
+        meta: meta.join(" · "),
+      }),
+    );
 
-    const body = details.createDiv({ cls: "vs-body" });
-    const text = body.createDiv({ cls: "vs-text" });
+    this.renderWords(section.body, words, audio);
+  }
 
+  private sectionOptions(
+    kind: "transcript" | "summary",
+    base: Omit<SectionOptions, "open" | "expanded" | "onOpenChange" | "onExpandChange">,
+  ): SectionOptions {
+    const settings = this.host.settings;
+    const openKey = kind === "transcript" ? "transcriptOpen" : "summaryOpen";
+    const expandedKey = kind === "transcript" ? "transcriptExpanded" : "summaryExpanded";
+
+    return {
+      ...base,
+      open: settings[openKey],
+      expanded: settings[expandedKey],
+      onOpenChange: (open) => {
+        settings[openKey] = open;
+        void this.host.saveSettings();
+      },
+      onExpandChange: (expanded) => {
+        settings[expandedKey] = expanded;
+        void this.host.saveSettings();
+      },
+    };
+  }
+
+  private renderWords(text: HTMLElement, words: Word[], audio: HTMLAudioElement): void {
     const hasSpeakers = words.some((word) => typeof word.speaker === "number");
     const spans: HTMLElement[] = [];
     let container: HTMLElement = text;
@@ -182,14 +216,37 @@ export class ProsodyView extends MarkdownRenderChild {
 
     this.registerDomEvent(audio, "timeupdate", sync);
     this.registerDomEvent(audio, "seeked", sync);
-
-    return text;
   }
 
-  private buildToolbar(wrap: HTMLElement, data: Sidecar, statusEl: HTMLElement): void {
+  private renderSummary(wrap: HTMLElement, data: Sidecar): Section {
+    const section = buildSection(
+      wrap,
+      this.sectionOptions("summary", {
+        cls: "vs-summary-head",
+        icon: "sparkles",
+        label: "Summary",
+      }),
+    );
+
+    section.body.addClass("vs-summary-body");
+
+    if (data.summary) {
+      this.renderMarkdown(section.body, data.summary);
+    } else {
+      section.details.hidden = true;
+    }
+
+    return section;
+  }
+
+  private renderMarkdown(el: HTMLElement, markdown: string): void {
+    el.empty();
+    void MarkdownRenderer.render(this.host.app, markdown, el, this.sourcePath, this);
+  }
+
+  private buildToolbar(wrap: HTMLElement, summaryView: Section): void {
     const settings = this.host.settings;
     const agent = currentAgent(settings);
-
     const bar = wrap.createDiv({ cls: "vs-bar" });
 
     const modelButton = bar.createEl("button", {
@@ -221,7 +278,7 @@ export class ProsodyView extends MarkdownRenderChild {
     const summarizeIcon = summarize.createSpan({ cls: "vs-btn-ico" });
     setIcon(summarizeIcon, "sparkles");
     summarize.addEventListener("click", () => {
-      void this.summarize(summarize, summarizeIcon, data.text ?? "", statusEl);
+      void this.summarize(summarize, summarizeIcon, summaryView);
     });
 
     const cog = bar.createEl("button", {
@@ -240,10 +297,10 @@ export class ProsodyView extends MarkdownRenderChild {
   private async summarize(
     button: HTMLButtonElement,
     iconEl: HTMLElement,
-    transcript: string,
-    statusEl: HTMLElement,
+    view: Section,
   ): Promise<void> {
     const settings = this.host.settings;
+    const transcript = this.sidecar?.text ?? "";
 
     if (!transcript.trim()) {
       new Notice("Prosody: nothing to summarize");
@@ -269,15 +326,16 @@ export class ProsodyView extends MarkdownRenderChild {
     button.addClass("is-busy");
     setTooltip(button, "Summarizing…");
     setIcon(iconEl, "loader-2");
-    statusEl.setText("");
-    statusEl.addClass("vs-live");
+    this.reveal(view);
+    view.body.addClass("vs-live");
+    view.body.setText("Summarizing…");
     let accumulated = "";
 
     try {
       const info = await runSummary(agent, settings, this.host.vaultPath(), transcript, (chunk) => {
         accumulated += chunk;
-        statusEl.setText(accumulated);
-        statusEl.scrollTop = statusEl.scrollHeight;
+        view.body.setText(accumulated);
+        view.body.scrollTop = view.body.scrollHeight;
       });
 
       if (info.models.length) {
@@ -287,14 +345,26 @@ export class ProsodyView extends MarkdownRenderChild {
 
       const summary = accumulated.trim();
 
+      view.body.removeClass("vs-live");
+
       if (summary) {
-        await this.insertSummary(summary);
+        await this.persistSummary(summary);
+        this.renderMarkdown(view.body, summary);
         new Notice("Prosody: summary added");
       } else {
+        view.body.setText("");
         new Notice("Prosody: the agent returned nothing");
       }
     } catch (err) {
       console.error("prosody: summarize failed", err);
+      view.body.removeClass("vs-live");
+
+      if (!this.sidecar?.summary) {
+        view.details.hidden = true;
+      } else {
+        this.renderMarkdown(view.body, this.sidecar.summary);
+      }
+
       new Notice(
         "Prosody: summarize failed — " + (err instanceof Error ? err.message : String(err)),
       );
@@ -303,57 +373,20 @@ export class ProsodyView extends MarkdownRenderChild {
       button.removeClass("is-busy");
       setIcon(iconEl, "sparkles");
       setTooltip(button, "Summarize transcript");
-      statusEl.removeClass("vs-live");
-      statusEl.setText("");
     }
   }
 
-  private async insertSummary(summary: string): Promise<void> {
-    const file = this.host.app.vault.getAbstractFileByPath(this.sourcePath);
-
-    if (!(file instanceof TFile)) return;
-
-    const callout =
-      "> [!summary]- Summary\n" +
-      summary
-        .split("\n")
-        .map((line) => (line ? "> " + line : ">"))
-        .join("\n");
-
-    const block = `${SUMMARY_START}\n${callout}\n${SUMMARY_END}`;
-    const content = await this.host.app.vault.read(file);
-    const marker = new RegExp(SUMMARY_START + "[\\s\\S]*?" + SUMMARY_END);
-    let updated: string;
-
-    if (marker.test(content)) {
-      updated = content.replace(marker, block);
-    } else {
-      const anchor = this.findFenceAnchor(content);
-
-      if (anchor === -1) {
-        updated = content.replace(/\s*$/, "") + "\n\n" + block + "\n";
-      } else {
-        const close = content.indexOf("\n```", anchor);
-        const insertAt = close === -1 ? content.length : close + 4;
-        updated =
-          content.slice(0, insertAt) +
-          "\n\n" +
-          block +
-          "\n" +
-          content.slice(insertAt).replace(/^\n+/, "");
-      }
-    }
-
-    await this.host.app.vault.modify(file, updated);
+  private reveal(view: Section): void {
+    view.details.hidden = false;
+    view.details.removeClass("vs-reveal");
+    void view.details.offsetWidth;
+    view.details.addClass("vs-reveal");
   }
 
-  private findFenceAnchor(content: string): number {
-    for (const fence of FENCES) {
-      const at = content.indexOf("```" + fence + "\n" + this.audioName);
+  private async persistSummary(summary: string): Promise<void> {
+    const data: Sidecar = { ...this.sidecar, summary };
 
-      if (at !== -1) return at;
-    }
-
-    return -1;
+    this.sidecar = data;
+    await this.host.app.vault.adapter.write(this.sidecarPath, JSON.stringify(data));
   }
 }

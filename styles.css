@@ -95,11 +95,12 @@
 
 .prosody .vs-body {
   padding: 12px 14px 14px;
-  max-height: 46vh;
+  max-height: 24vh;
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+  transition: max-height 0.22s var(--vs-ease);
 }
 
 .prosody .vs-text {
@@ -156,6 +157,92 @@
 
 .prosody .vs-utterance-text {
   line-height: inherit;
+}
+
+/* ---- summary section ---- */
+
+.prosody .vs-summary-head {
+  border-color: var(--background-modifier-border);
+}
+
+.prosody .vs-summary-head .vs-ico {
+  color: var(--interactive-accent);
+}
+
+.prosody .vs-summary-head[hidden] {
+  display: none;
+}
+
+.prosody .vs-summary-head.vs-reveal {
+  animation: vs-fade-in 0.25s var(--vs-ease);
+}
+
+.prosody .vs-head:not(.is-expanded) .vs-body {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+}
+
+.prosody .vs-head.is-expanded .vs-body {
+  max-height: 70vh;
+}
+
+.prosody .vs-expand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition:
+    background-color 0.14s var(--vs-ease),
+    color 0.14s var(--vs-ease);
+}
+
+.prosody .vs-expand:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.prosody .vs-expand:disabled {
+  opacity: 0.4;
+  cursor: default;
+  background: none;
+  color: var(--text-faint);
+}
+
+.prosody .vs-expand:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.prosody .vs-expand svg {
+  width: 15px;
+  height: 15px;
+}
+
+.prosody .vs-summary-body > :first-child {
+  margin-top: 0;
+}
+
+.prosody .vs-summary-body > :last-child {
+  margin-bottom: 0;
+}
+
+@keyframes vs-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ---- toolbar ---- */

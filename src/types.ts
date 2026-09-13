@@ -57,6 +57,7 @@ export interface Sidecar {
   text?: string;
   words?: Word[];
   segments?: Segment[];
+  summary?: string;
 }
 
 export type PermissionMode = "deny" | "allow";
@@ -73,6 +74,10 @@ export interface ProsodySettings {
   wslDistribution: string;
   debug: boolean;
   recorderNudgeDismissed: boolean;
+  summaryOpen: boolean;
+  summaryExpanded: boolean;
+  transcriptOpen: boolean;
+  transcriptExpanded: boolean;
 }
 
 export interface SessionUpdate {
