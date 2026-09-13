@@ -1,0 +1,9 @@
+{
+  "id": "prosody-obsidian",
+  "name": "Prosody",
+  "version": "0.1.0",
+  "minAppVersion": "1.4.0",
+  "description": "Local transcription, word-synced playback, and AI summaries through any ACP agent (OpenCode, Claude Code, Codex, Gemini, ...).",
+  "author": "nfisher",
+  "isDesktopOnly": false
+}

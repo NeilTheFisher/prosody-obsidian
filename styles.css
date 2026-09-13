@@ -1,0 +1,397 @@
+/* Prosody — native Obsidian editorial card.
+   Tokens come from the active theme; no hard-coded palette. */
+
+.prosody {
+  --vs-radius: 12px;
+  --vs-radius-sm: 8px;
+  --vs-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  margin: 0.6em 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--vs-radius);
+  background: var(--background-secondary);
+}
+
+.prosody audio {
+  display: block;
+  width: 100%;
+  height: 36px;
+}
+
+/* ---- collapsible head ---- */
+
+.prosody .vs-head {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--vs-radius-sm);
+  background: var(--background-primary);
+  overflow: hidden;
+}
+
+.prosody .vs-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  cursor: pointer;
+  list-style: none;
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+  transition:
+    background-color 0.14s var(--vs-ease),
+    color 0.14s var(--vs-ease);
+}
+
+.prosody .vs-summary::-webkit-details-marker {
+  display: none;
+}
+
+.prosody .vs-summary:hover {
+  background: var(--background-modifier-hover);
+}
+
+.prosody .vs-head[open] > .vs-summary {
+  color: var(--text-normal);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.prosody .vs-chevron {
+  display: inline-flex;
+  color: var(--text-faint);
+  transition: transform 0.18s var(--vs-ease);
+}
+
+.prosody .vs-head[open] .vs-chevron {
+  transform: rotate(90deg);
+}
+
+.prosody .vs-ico {
+  display: inline-flex;
+  color: var(--interactive-accent);
+}
+
+.prosody .vs-ico svg,
+.prosody .vs-chevron svg {
+  width: 15px;
+  height: 15px;
+}
+
+.prosody .vs-label {
+  flex: 1 1 auto;
+}
+
+.prosody .vs-meta {
+  font-size: var(--font-ui-smaller);
+  font-weight: 500;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- transcript body: wraps, never scrolls sideways ---- */
+
+.prosody .vs-body {
+  padding: 12px 14px 14px;
+  max-height: 46vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.prosody .vs-text {
+  max-width: 68ch;
+  font-size: 0.98em;
+  line-height: 1.95;
+  color: var(--text-normal);
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: auto;
+}
+
+.prosody .vs-text.vs-live {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.prosody .vs-word {
+  cursor: pointer;
+  padding: 1px 2px;
+  border-radius: 4px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  transition:
+    background-color 0.1s linear,
+    box-shadow 0.12s var(--vs-ease);
+}
+
+.prosody .vs-word:hover {
+  background: var(--background-modifier-hover);
+}
+
+.prosody .vs-word.vs-active {
+  background: var(--text-selection);
+  box-shadow: inset 0 -2px 0 var(--interactive-accent);
+}
+
+.prosody .vs-utterance {
+  margin: 0 0 0.6em;
+}
+
+.prosody .vs-utterance:last-child {
+  margin-bottom: 0;
+}
+
+.prosody .vs-speaker {
+  margin-bottom: 2px;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--interactive-accent);
+}
+
+.prosody .vs-utterance-text {
+  line-height: inherit;
+}
+
+/* ---- toolbar ---- */
+
+.prosody .vs-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.prosody .vs-model {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 46%;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--vs-radius-sm);
+  background: var(--background-primary);
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  cursor: pointer;
+  transition:
+    border-color 0.14s var(--vs-ease),
+    color 0.14s var(--vs-ease);
+}
+
+.prosody .vs-model:hover {
+  border-color: var(--interactive-accent);
+  color: var(--text-normal);
+}
+
+.prosody .vs-model-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prosody .vs-model .vs-btn-ico svg {
+  width: 13px;
+  height: 13px;
+}
+
+.prosody .vs-model:hover {
+  border-color: var(--interactive-accent);
+  color: var(--text-normal);
+}
+
+.prosody .vs-summarize,
+.prosody .vs-cog {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--vs-radius-sm);
+  background: var(--interactive-normal);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background-color 0.14s var(--vs-ease),
+    color 0.14s var(--vs-ease),
+    border-color 0.14s var(--vs-ease),
+    transform 0.08s var(--vs-ease);
+}
+
+.prosody .vs-summarize:hover,
+.prosody .vs-cog:hover {
+  background: var(--interactive-hover);
+  border-color: var(--interactive-accent);
+  color: var(--interactive-accent);
+}
+
+.prosody .vs-summarize:active,
+.prosody .vs-cog:active {
+  transform: translateY(1px);
+}
+
+.prosody .vs-summarize:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+
+.prosody .vs-summarize.is-busy .vs-btn-ico {
+  animation: vs-spin 0.9s linear infinite;
+}
+
+.prosody .vs-btn-ico {
+  display: inline-flex;
+}
+
+.prosody .vs-btn-ico svg {
+  width: 15px;
+  height: 15px;
+}
+
+@keyframes vs-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- states ---- */
+
+.prosody .vs-state {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: var(--vs-radius-sm);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.prosody .vs-state.vs-error {
+  color: var(--text-error);
+  border-color: var(--text-error);
+}
+
+.prosody .vs-state-ico {
+  display: inline-flex;
+}
+
+.prosody .vs-state-ico svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---- focus ---- */
+
+.prosody .vs-summary:focus-visible,
+.prosody .vs-summarize:focus-visible,
+.prosody .vs-cog:focus-visible,
+.prosody .vs-model:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+  border-radius: var(--vs-radius-sm);
+}
+
+/* ---- settings tab ---- */
+
+.prosody-settings .prosody-agent {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--vs-radius-sm, 8px);
+  margin: 6px 0;
+  background: var(--background-secondary);
+  overflow: hidden;
+}
+
+.prosody-settings .prosody-agent-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.prosody-settings .prosody-agent-header:hover {
+  background: var(--background-modifier-hover);
+}
+
+.prosody-settings .prosody-agent-chevron {
+  display: inline-flex;
+  color: var(--text-faint);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.prosody-settings .prosody-agent.is-open .prosody-agent-chevron {
+  transform: rotate(90deg);
+}
+
+.prosody-settings .prosody-agent-name {
+  font-weight: 600;
+}
+
+.prosody-settings .prosody-agent-spacer {
+  flex: 1 1 auto;
+}
+
+.prosody-settings .prosody-agent-remove {
+  color: var(--text-faint);
+}
+
+.prosody-settings .prosody-agent-remove:hover {
+  color: var(--text-error);
+}
+
+.prosody-settings .prosody-agent.is-disabled .prosody-agent-name {
+  color: var(--text-faint);
+}
+
+.prosody-settings .prosody-agent-body {
+  display: none;
+  padding: 0 12px 8px 12px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.prosody-settings .prosody-agent.is-open .prosody-agent-body {
+  display: block;
+}
+
+.prosody-settings .prosody-empty {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.prosody-settings .prosody-hint {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--background-modifier-border);
+  border-left: 3px solid var(--interactive-accent);
+  border-radius: var(--vs-radius-sm, 8px);
+  background: var(--background-secondary);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.prosody-notice-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prosody *,
+  .prosody-settings * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

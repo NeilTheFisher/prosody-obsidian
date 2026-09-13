@@ -1,0 +1,314 @@
+{
+  "plugins": [
+    "unicorn",
+    "typescript",
+    "oxc",
+    "import",
+    "eslint",
+    "react",
+    "react-perf",
+    "jsx-a11y",
+    "vitest",
+    "promise"
+  ],
+  "categories": {},
+  // anti-slop is vendored from https://github.com/dmmulroy/anti-slop (MIT) - see
+  // tools/oxlint/anti-slop/README.md for why it is vendored rather than installed.
+  "jsPlugins": [{ "name": "anti-slop", "specifier": "./tools/oxlint/anti-slop/index.ts" }],
+  "rules": {
+    "oxc/no-accumulating-spread": "error",
+    "anti-slop/no-array-filter-map": "error",
+    "anti-slop/no-reduce-accumulator-copy": "error",
+    "anti-slop/require-readable-spacing": "error",
+    "anti-slop/no-chained-type-assertions": "error",
+    "anti-slop/no-conditional-empty-object-spread": "error",
+    "anti-slop/no-known-value-widening": "error",
+    "anti-slop/no-module-mocking": "error",
+    "anti-slop/no-object-parameters": "error",
+    "anti-slop/no-reflect-apply": "error",
+    "anti-slop/no-reflect-get": "error",
+    "anti-slop/no-shape-in-symbol-names": "error",
+    "anti-slop/no-unknown-returns": "error",
+    "anti-slop/no-unknown-type-aliases": "error",
+    // TODO: raise to "error" once legacy-JSON boundaries parse through arktype schemas like
+    // `event-settings-schema.ts`. ~33 sites still hand back `Record<string, unknown>` from a
+    // `JSON.parse` or a Drizzle JSON column; converting them is a parity-risky refactor of its
+    // own. Some are irreducible anyway (type guards, generic constraints).
+    "anti-slop/no-unsafe-dictionary-type": "warn",
+    "anti-slop/no-widen-then-assert": "error",
+    "import/no-cycle": "error",
+    "for-direction": "warn",
+    "no-async-promise-executor": "warn",
+    "no-await-in-loop": "error",
+    "no-caller": "warn",
+    "no-class-assign": "warn",
+    "no-compare-neg-zero": "warn",
+    "no-cond-assign": "warn",
+    "no-console": "warn",
+    "no-const-assign": "warn",
+    "no-constant-binary-expression": "warn",
+    "no-constant-condition": "warn",
+    "no-control-regex": "warn",
+    "no-debugger": "warn",
+    "no-delete-var": "warn",
+    "no-dupe-class-members": "warn",
+    "no-dupe-else-if": "warn",
+    "no-dupe-keys": "warn",
+    "no-duplicate-case": "warn",
+    "no-empty-character-class": "warn",
+    "no-empty-pattern": "warn",
+    "no-empty-static-block": "warn",
+    "no-eval": "warn",
+    "no-ex-assign": "warn",
+    "no-extra-boolean-cast": "warn",
+    "no-func-assign": "warn",
+    "no-global-assign": "warn",
+    "no-import-assign": "warn",
+    "no-invalid-regexp": "warn",
+    "no-irregular-whitespace": "warn",
+    "no-loss-of-precision": "warn",
+    "no-new-native-nonconstructor": "warn",
+    "no-nonoctal-decimal-escape": "warn",
+    "no-obj-calls": "warn",
+    "no-self-assign": "warn",
+    "no-setter-return": "warn",
+    "no-shadow-restricted-names": "warn",
+    "no-sparse-arrays": "warn",
+    "no-this-before-super": "warn",
+    "no-unassigned-vars": "warn",
+    "no-unsafe-finally": "warn",
+    "no-unsafe-negation": "warn",
+    "no-unsafe-optional-chaining": "warn",
+    "no-unused-expressions": "warn",
+    "no-unused-labels": "warn",
+    "no-unused-private-class-members": "warn",
+    "no-unused-vars": "off",
+    "no-useless-backreference": "warn",
+    "no-useless-catch": "warn",
+    "no-useless-escape": "warn",
+    "no-useless-rename": "warn",
+    "no-with": "warn",
+    "require-yield": "warn",
+    "use-isnan": "warn",
+    "valid-typeof": "warn",
+    "eslint/require-await": "error",
+    "eslint/no-unused-vars": "off",
+    "oxc/bad-array-method-on-arguments": "warn",
+    "oxc/bad-char-at-comparison": "warn",
+    "oxc/bad-comparison-sequence": "warn",
+    "oxc/bad-min-max-func": "warn",
+    "oxc/bad-object-literal-comparison": "warn",
+    "oxc/bad-replace-all-arg": "warn",
+    "oxc/const-comparisons": "warn",
+    "oxc/double-comparisons": "warn",
+    "oxc/erasing-op": "warn",
+    "oxc/missing-throw": "warn",
+    "oxc/number-arg-out-of-range": "warn",
+    "oxc/only-used-in-recursion": "warn",
+    "oxc/uninvoked-array-callback": "warn",
+    "promise/prefer-await-to-then": "error",
+    "promise/no-return-wrap": "error",
+    "promise/param-names": "error",
+    "promise/no-nesting": "warn",
+    "promise/no-promise-in-callback": "warn",
+    "promise/no-callback-in-promise": "warn",
+    "promise/no-new-statics": "error",
+    "promise/no-return-in-finally": "warn",
+    "promise/valid-params": "warn",
+    "typescript/await-thenable": "warn",
+    "typescript/no-array-delete": "warn",
+    "typescript/no-base-to-string": "error",
+    "typescript/no-confusing-void-expression": "error",
+    "typescript/no-deprecated": "warn",
+    "typescript/no-duplicate-enum-values": "warn",
+    "typescript/no-duplicate-type-constituents": "warn",
+    "typescript/no-dynamic-delete": "warn",
+    "typescript/no-explicit-any": "error",
+    "typescript/no-extra-non-null-assertion": "warn",
+    "typescript/no-extraneous-class": "warn",
+    "typescript/no-floating-promises": "error",
+    "typescript/no-for-in-array": "warn",
+    "typescript/no-implied-eval": "warn",
+    "typescript/no-invalid-void-type": "warn",
+    "typescript/no-meaningless-void-operator": "error",
+    "typescript/no-misused-new": "warn",
+    "typescript/no-misused-promises": [
+      "error",
+      {
+        "checksVoidReturn": false
+      }
+    ],
+    "typescript/no-misused-spread": "error",
+    "typescript/no-mixed-enums": "warn",
+    "typescript/no-namespace": "warn",
+    "typescript/no-non-null-asserted-nullish-coalescing": "warn",
+    "typescript/no-non-null-asserted-optional-chain": "warn",
+    "typescript/no-non-null-assertion": "warn",
+    "typescript/no-redundant-type-constituents": "warn",
+    "typescript/no-require-imports": "warn",
+    "typescript/no-this-alias": "warn",
+    "typescript/no-unnecessary-boolean-literal-compare": "warn",
+    "typescript/no-unnecessary-condition": [
+      "error",
+      {
+        "allowConstantLoopConditions": "only-allowed-literals"
+      }
+    ],
+    "typescript/no-unnecessary-parameter-property-assignment": "warn",
+    "typescript/no-unnecessary-template-expression": "warn",
+    "typescript/no-unnecessary-type-arguments": "warn",
+    "typescript/no-unnecessary-type-assertion": "error",
+    "typescript/no-unnecessary-type-constraint": "warn",
+    "typescript/no-unnecessary-type-conversion": "warn",
+    "typescript/no-unnecessary-type-parameters": "warn",
+    "typescript/no-unsafe-call": "error",
+    "typescript/no-unsafe-declaration-merging": "warn",
+    "typescript/no-unsafe-function-type": "warn",
+    "typescript/no-unsafe-unary-minus": "warn",
+    "typescript/no-useless-default-assignment": "warn",
+    "typescript/no-useless-empty-export": "warn",
+    "typescript/no-wrapper-object-types": "warn",
+    "typescript/only-throw-error": "warn",
+    "typescript/prefer-as-const": "warn",
+    "typescript/prefer-literal-enum-member": "warn",
+    "typescript/prefer-namespace-keyword": "warn",
+    "typescript/prefer-reduce-type-parameter": "warn",
+    "typescript/prefer-return-this-type": "warn",
+    "typescript/related-getter-setter-pairs": "warn",
+    "typescript/require-array-sort-compare": "warn",
+    "typescript/restrict-plus-operands": "warn",
+    "typescript/restrict-template-expressions": "warn",
+    "typescript/return-await": "warn",
+    "typescript/triple-slash-reference": "warn",
+    "typescript/unbound-method": "warn",
+    "typescript/unified-signatures": "warn",
+    "typescript/use-unknown-in-catch-callback-variable": "warn",
+    "react/display-name": "error",
+    "react/jsx-key": "error",
+    "react/jsx-no-comment-textnodes": "error",
+    "react/jsx-no-duplicate-props": "error",
+    "react/jsx-no-target-blank": "error",
+    "react/jsx-no-undef": "error",
+    "react/no-danger-with-children": "error",
+    "react/no-direct-mutation-state": "error",
+    "react/no-find-dom-node": "error",
+    "react/no-is-mounted": "error",
+    "react/no-render-return-value": "error",
+    "react/no-string-refs": "error",
+    "react/no-unescaped-entities": "off",
+    "react/no-unknown-property": "error",
+    "react/require-render-return": "error",
+    "react/react-in-jsx-scope": "off",
+    "react/void-dom-elements-no-children": "off",
+    "react/rules-of-hooks": "error",
+    "react/exhaustive-deps": "warn",
+    "react/only-export-components": [
+      "error",
+      {
+        "allowConstantExport": false,
+        "customHOCs": [
+          "createFileRoute",
+          "createLazyFileRoute",
+          "createRootRoute",
+          "createRootRouteWithContext",
+          "createLink",
+          "createRoute",
+          "createLazyRoute"
+        ]
+      }
+    ],
+    "jsx-a11y/alt-text": "warn",
+    "jsx-a11y/anchor-has-content": "warn",
+    "jsx-a11y/anchor-is-valid": "warn",
+    "jsx-a11y/aria-props": "warn",
+    "jsx-a11y/aria-role": "warn",
+    "jsx-a11y/aria-unsupported-elements": "warn",
+    "jsx-a11y/heading-has-content": "warn",
+    "jsx-a11y/label-has-associated-control": "warn",
+    "jsx-a11y/no-redundant-roles": "warn",
+    "jsx-a11y/role-has-required-aria-props": "warn",
+    "jsx-a11y/role-supports-aria-props": "warn",
+    "unicorn/no-array-for-each": "warn",
+    "unicorn/no-await-in-promise-methods": "warn",
+    "unicorn/no-empty-file": "warn",
+    "unicorn/no-invalid-fetch-options": "warn",
+    "unicorn/no-invalid-remove-event-listener": "warn",
+    "unicorn/no-new-array": "warn",
+    "unicorn/no-single-promise-in-promise-methods": "warn",
+    "unicorn/no-thenable": "warn",
+    "unicorn/prefer-includes": "warn",
+    "unicorn/prefer-logical-operator-over-ternary": "warn",
+    "unicorn/prefer-string-replace-all": "warn",
+    "unicorn/no-unnecessary-await": "warn",
+    "unicorn/no-useless-fallback-in-spread": "warn",
+    "unicorn/no-useless-length-check": "warn",
+    "unicorn/no-useless-spread": "warn",
+    "unicorn/prefer-set-size": "warn",
+    "unicorn/prefer-string-starts-ends-with": "warn"
+  },
+  "settings": {
+    "jsx-a11y": {
+      "components": {},
+      "attributes": {}
+    },
+    "next": {
+      "rootDir": []
+    },
+    "react": {
+      "formComponents": [],
+      "linkComponents": []
+    },
+    "jsdoc": {
+      "ignorePrivate": false,
+      "ignoreInternal": false,
+      "ignoreReplacesDocs": true,
+      "overrideReplacesDocs": true,
+      "augmentsExtendsReplacesDocs": false,
+      "implementsReplacesDocs": false,
+      "exemptDestructuredRootsFromChecks": false,
+      "tagNamePreference": {}
+    },
+    "vitest": {
+      "typecheck": false
+    }
+  },
+  "env": {
+    "builtin": true
+  },
+  "globals": {},
+  "overrides": [
+    {
+      // The ACP client parses newline-delimited JSON-RPC from an external
+      // process; `Record<string, unknown>` is the honest boundary type there.
+      "files": ["src/acp/client.ts"],
+      "rules": {
+        "anti-slop/no-unsafe-dictionary-type": "off",
+        "typescript/no-require-imports": "off"
+      }
+    },
+    {
+      // Node builtins must be lazily require()d so the bundle still loads on
+      // Obsidian mobile, where those modules do not exist.
+      "files": ["src/ui/agentFields.ts"],
+      "rules": {
+        "typescript/no-require-imports": "off"
+      }
+    },
+    {
+      // Debug/error logging is intentional in this plugin.
+      "files": ["src/acp/client.ts", "src/ui/widget.ts"],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      // Build scripts are not part of the typed source graph.
+      "files": ["esbuild.config.mjs", "scripts/**"],
+      "rules": {
+        "no-unsafe-call": "off",
+        "no-console": "off"
+      }
+    }
+  ],
+  "ignorePatterns": ["main.js", "node_modules", "bun.lock", "tools/oxlint/anti-slop"]
+}
