@@ -78,6 +78,8 @@ export interface ProsodySettings {
   summaryExpanded: boolean;
   transcriptOpen: boolean;
   transcriptExpanded: boolean;
+  speakerCount: string;
+  transcriptionUrl: string;
 }
 
 export interface SessionUpdate {

@@ -3,6 +3,7 @@ import {
   MarkdownRenderer,
   Notice,
   Platform,
+  TFile,
   setIcon,
   setTooltip,
 } from "obsidian";
@@ -17,6 +18,7 @@ export class ProsodyView extends MarkdownRenderChild {
   private host: PluginHost;
   private audioName: string;
   private sourcePath: string;
+  private audioFile: TFile | null = null;
   private sidecarPath = "";
   private sidecar: Sidecar | null = null;
 
@@ -61,8 +63,12 @@ export class ProsodyView extends MarkdownRenderChild {
 
   async onload(): Promise<void> {
     this.containerEl.addClass("prosody-root");
-    this.containerEl.empty();
     this.resetInheritedStyles();
+    await this.render();
+  }
+
+  private async render(): Promise<void> {
+    this.containerEl.empty();
 
     const wrap = this.containerEl.createDiv({ cls: "prosody" });
 
@@ -80,6 +86,7 @@ export class ProsodyView extends MarkdownRenderChild {
       return;
     }
 
+    this.audioFile = file;
     this.sidecarPath = file.path.replace(/\.[^.]+$/, ".json");
     this.sidecar = await this.readSidecar();
 
@@ -290,7 +297,7 @@ export class ProsodyView extends MarkdownRenderChild {
     const cogIcon = cog.createSpan({ cls: "vs-btn-ico" });
     setIcon(cogIcon, "cog");
     cog.addEventListener("click", () => {
-      new ProsodyModal(this.host.app, this.host).open();
+      new ProsodyModal(this.host.app, this.host, () => this.retranscribe()).open();
     });
   }
 
@@ -381,6 +388,51 @@ export class ProsodyView extends MarkdownRenderChild {
     view.details.removeClass("vs-reveal");
     void view.details.offsetWidth;
     view.details.addClass("vs-reveal");
+  }
+
+  private showBusy(text: string): HTMLElement {
+    const status = this.containerEl.createDiv({ cls: "vs-status" });
+    const icon = status.createSpan({ cls: "vs-btn-ico vs-spinning" });
+
+    setIcon(icon, "loader-2");
+    status.createSpan({ text });
+
+    return status;
+  }
+
+  private async retranscribe(): Promise<void> {
+    if (!this.audioFile) return;
+
+    const settings = this.host.settings;
+    const status = this.showBusy("Transcribing…");
+
+    try {
+      const buffer = await this.host.app.vault.readBinary(this.audioFile);
+      const form = new FormData();
+
+      form.append("file", new Blob([buffer]), this.audioFile.name);
+      form.append("response_format", "verbose_json");
+      form.append("diarize", settings.speakerCount);
+
+      const url = settings.transcriptionUrl.replace(/\/+$/, "") + "/v1/audio/transcriptions";
+      const response = await fetch(url, { method: "POST", body: form });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = (await response.json()) as Sidecar;
+      const merged: Sidecar = { ...data, summary: this.sidecar?.summary };
+
+      await this.host.app.vault.adapter.write(this.sidecarPath, JSON.stringify(merged));
+      this.sidecar = merged;
+      status.remove();
+      new Notice("Prosody: transcript updated");
+      await this.render();
+    } catch (err) {
+      status.remove();
+      new Notice(
+        "Prosody: re-transcribe failed — " + (err instanceof Error ? err.message : String(err)),
+      );
+    }
   }
 
   private async persistSummary(summary: string): Promise<void> {

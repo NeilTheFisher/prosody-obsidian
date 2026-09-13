@@ -216,6 +216,15 @@ export class ProsodySettingsTab extends PluginSettingTab {
         settings.cwd = value.trim();
       },
     );
+    this.text(
+      containerEl,
+      "Transcription URL",
+      "OpenAI-compatible endpoint used to (re-)transcribe audio, e.g. http://127.0.0.1:8178.",
+      () => settings.transcriptionUrl,
+      (value) => {
+        settings.transcriptionUrl = value.trim();
+      },
+    );
     this.toggle(
       containerEl,
       "Debug logging",

@@ -71,7 +71,9 @@ var DEFAULT_SETTINGS = {
   summaryOpen: true,
   summaryExpanded: false,
   transcriptOpen: false,
-  transcriptExpanded: false
+  transcriptExpanded: false,
+  speakerCount: "none",
+  transcriptionUrl: "http://127.0.0.1:8178"
 };
 
 // src/ui/settingsTab.ts
@@ -398,6 +400,15 @@ var ProsodySettingsTab = class extends import_obsidian2.PluginSettingTab {
       () => settings.cwd,
       (value) => {
         settings.cwd = value.trim();
+      }
+    );
+    this.text(
+      containerEl,
+      "Transcription URL",
+      "OpenAI-compatible endpoint used to (re-)transcribe audio, e.g. http://127.0.0.1:8178.",
+      () => settings.transcriptionUrl,
+      (value) => {
+        settings.transcriptionUrl = value.trim();
       }
     );
     this.toggle(
@@ -749,15 +760,12 @@ function openModelPicker(host, agent, onPicked) {
 // src/ui/modal.ts
 var import_obsidian6 = require("obsidian");
 var ProsodyModal = class extends import_obsidian6.Modal {
-  constructor(app, host, onChanged) {
+  constructor(app, host, onRetranscribe) {
     super(app);
     __publicField(this, "host");
-    __publicField(this, "onChanged");
+    __publicField(this, "onRetranscribe");
     this.host = host;
-    this.onChanged = onChanged;
-  }
-  notifyChanged() {
-    if (this.onChanged) this.onChanged();
+    this.onRetranscribe = onRetranscribe;
   }
   onOpen() {
     const settings = this.host.settings;
@@ -768,7 +776,6 @@ var ProsodyModal = class extends import_obsidian6.Modal {
     const agent = currentAgent(settings);
     const rerender = () => {
       this.onOpen();
-      this.notifyChanged();
     };
     new import_obsidian6.Setting(contentEl).setName("Agent").addDropdown((dropdown) => {
       for (const candidate of agents) {
@@ -809,9 +816,32 @@ var ProsodyModal = class extends import_obsidian6.Modal {
       (dropdown) => dropdown.addOption("deny", "Auto-deny").addOption("allow", "Auto-allow").setValue(settings.permissionMode).onChange(async (value) => {
         settings.permissionMode = value === "allow" ? "allow" : "deny";
         await this.host.saveSettings();
-        this.notifyChanged();
       })
     );
+    new import_obsidian6.Setting(contentEl).setName("Speakers").setDesc(
+      "Label speakers during transcription. Auto is unreliable on long recordings; pick a number when you know how many there are."
+    ).addDropdown((dropdown) => {
+      dropdown.addOption("none", "Off");
+      dropdown.addOption("auto", "Auto");
+      for (const count of [2, 3, 4, 5, 6]) dropdown.addOption(String(count), `${count} speakers`);
+      dropdown.setValue(settings.speakerCount).onChange(async (value) => {
+        settings.speakerCount = value;
+        await this.host.saveSettings();
+      });
+    });
+    if (this.onRetranscribe) {
+      new import_obsidian6.Setting(contentEl).setName("Re-transcribe").setDesc("Re-run transcription for this recording using the speakers setting above.").addButton(
+        (button) => button.setButtonText("Re-transcribe").setCta().onClick(async () => {
+          button.setDisabled(true);
+          button.setButtonText("Transcribing\u2026");
+          try {
+            await this.onRetranscribe?.();
+          } finally {
+            this.close();
+          }
+        })
+      );
+    }
     new import_obsidian6.Setting(contentEl).addButton(
       (button) => button.setButtonText("Open full settings").onClick(() => {
         this.close();
@@ -875,6 +905,7 @@ var ProsodyView = class extends import_obsidian8.MarkdownRenderChild {
     __publicField(this, "host");
     __publicField(this, "audioName");
     __publicField(this, "sourcePath");
+    __publicField(this, "audioFile", null);
     __publicField(this, "sidecarPath", "");
     __publicField(this, "sidecar", null);
     this.host = host;
@@ -909,8 +940,11 @@ var ProsodyView = class extends import_obsidian8.MarkdownRenderChild {
   }
   async onload() {
     this.containerEl.addClass("prosody-root");
-    this.containerEl.empty();
     this.resetInheritedStyles();
+    await this.render();
+  }
+  async render() {
+    this.containerEl.empty();
     const wrap = this.containerEl.createDiv({ cls: "prosody" });
     if (!this.audioName) {
       this.state(wrap, "file-warning", "No audio file specified.", true);
@@ -921,6 +955,7 @@ var ProsodyView = class extends import_obsidian8.MarkdownRenderChild {
       this.state(wrap, "file-warning", "Audio not found in this vault: " + this.audioName, true);
       return;
     }
+    this.audioFile = file;
     this.sidecarPath = file.path.replace(/\.[^.]+$/, ".json");
     this.sidecar = await this.readSidecar();
     if (!this.sidecar?.words?.length) {
@@ -1087,7 +1122,7 @@ var ProsodyView = class extends import_obsidian8.MarkdownRenderChild {
     const cogIcon = cog.createSpan({ cls: "vs-btn-ico" });
     (0, import_obsidian8.setIcon)(cogIcon, "cog");
     cog.addEventListener("click", () => {
-      new ProsodyModal(this.host.app, this.host).open();
+      new ProsodyModal(this.host.app, this.host, () => this.retranscribe()).open();
     });
   }
   async summarize(button, iconEl, view) {
@@ -1157,6 +1192,40 @@ var ProsodyView = class extends import_obsidian8.MarkdownRenderChild {
     view.details.removeClass("vs-reveal");
     void view.details.offsetWidth;
     view.details.addClass("vs-reveal");
+  }
+  showBusy(text) {
+    const status = this.containerEl.createDiv({ cls: "vs-status" });
+    const icon = status.createSpan({ cls: "vs-btn-ico vs-spinning" });
+    (0, import_obsidian8.setIcon)(icon, "loader-2");
+    status.createSpan({ text });
+    return status;
+  }
+  async retranscribe() {
+    if (!this.audioFile) return;
+    const settings = this.host.settings;
+    const status = this.showBusy("Transcribing\u2026");
+    try {
+      const buffer = await this.host.app.vault.readBinary(this.audioFile);
+      const form = new FormData();
+      form.append("file", new Blob([buffer]), this.audioFile.name);
+      form.append("response_format", "verbose_json");
+      form.append("diarize", settings.speakerCount);
+      const url = settings.transcriptionUrl.replace(/\/+$/, "") + "/v1/audio/transcriptions";
+      const response = await fetch(url, { method: "POST", body: form });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      const merged = { ...data, summary: this.sidecar?.summary };
+      await this.host.app.vault.adapter.write(this.sidecarPath, JSON.stringify(merged));
+      this.sidecar = merged;
+      status.remove();
+      new import_obsidian8.Notice("Prosody: transcript updated");
+      await this.render();
+    } catch (err) {
+      status.remove();
+      new import_obsidian8.Notice(
+        "Prosody: re-transcribe failed \u2014 " + (err instanceof Error ? err.message : String(err))
+      );
+    }
   }
   async persistSummary(summary) {
     const data = { ...this.sidecar, summary };

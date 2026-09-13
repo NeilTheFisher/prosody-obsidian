@@ -380,6 +380,31 @@
   height: 16px;
 }
 
+.prosody-root .vs-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0.4em 0;
+  padding: 8px 12px;
+  border: 1px dashed var(--background-modifier-border);
+  border-radius: var(--vs-radius, 12px);
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
+.prosody-root .vs-status .vs-btn-ico {
+  display: inline-flex;
+}
+
+.prosody-root .vs-status svg {
+  width: 15px;
+  height: 15px;
+}
+
+.prosody-root .vs-status .vs-spinning {
+  animation: vs-spin 0.9s linear infinite;
+}
+
 /* ---- focus ---- */
 
 .prosody .vs-summary:focus-visible,

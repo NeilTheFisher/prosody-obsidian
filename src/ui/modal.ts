@@ -11,16 +11,12 @@ interface AppWithSetting extends App {
 
 export class ProsodyModal extends Modal {
   private host: PluginHost;
-  private onChanged?: () => void;
+  private onRetranscribe?: () => void | Promise<void>;
 
-  constructor(app: App, host: PluginHost, onChanged?: () => void) {
+  constructor(app: App, host: PluginHost, onRetranscribe?: () => void | Promise<void>) {
     super(app);
     this.host = host;
-    this.onChanged = onChanged;
-  }
-
-  private notifyChanged(): void {
-    if (this.onChanged) this.onChanged();
+    this.onRetranscribe = onRetranscribe;
   }
 
   onOpen(): void {
@@ -34,7 +30,6 @@ export class ProsodyModal extends Modal {
 
     const rerender = () => {
       this.onOpen();
-      this.notifyChanged();
     };
 
     new Setting(contentEl).setName("Agent").addDropdown((dropdown) => {
@@ -61,7 +56,6 @@ export class ProsodyModal extends Modal {
         openModelPicker(this.host, agent, rerender);
       }),
     );
-
     modelSetting.addExtraButton((button) =>
       button
         .setIcon("refresh-cw")
@@ -73,6 +67,7 @@ export class ProsodyModal extends Modal {
 
           try {
             const result = await fetchModels(agent, settings, this.host.vaultPath());
+
             settings.modelsCache[agent.id] = result;
             await this.host.saveSettings();
             new Notice(`Prosody: loaded ${result.models.length} models`);
@@ -96,14 +91,51 @@ export class ProsodyModal extends Modal {
           .onChange(async (value) => {
             settings.permissionMode = value === "allow" ? "allow" : "deny";
             await this.host.saveSettings();
-            this.notifyChanged();
           }),
       );
+
+    new Setting(contentEl)
+      .setName("Speakers")
+      .setDesc(
+        "Label speakers during transcription. Auto is unreliable on long recordings; pick a number when you know how many there are.",
+      )
+      .addDropdown((dropdown) => {
+        dropdown.addOption("none", "Off");
+        dropdown.addOption("auto", "Auto");
+
+        for (const count of [2, 3, 4, 5, 6]) dropdown.addOption(String(count), `${count} speakers`);
+        dropdown.setValue(settings.speakerCount).onChange(async (value) => {
+          settings.speakerCount = value;
+          await this.host.saveSettings();
+        });
+      });
+
+    if (this.onRetranscribe) {
+      new Setting(contentEl)
+        .setName("Re-transcribe")
+        .setDesc("Re-run transcription for this recording using the speakers setting above.")
+        .addButton((button) =>
+          button
+            .setButtonText("Re-transcribe")
+            .setCta()
+            .onClick(async () => {
+              button.setDisabled(true);
+              button.setButtonText("Transcribing…");
+
+              try {
+                await this.onRetranscribe?.();
+              } finally {
+                this.close();
+              }
+            }),
+        );
+    }
 
     new Setting(contentEl).addButton((button) =>
       button.setButtonText("Open full settings").onClick(() => {
         this.close();
         const app = this.app as AppWithSetting;
+
         app.setting.open();
         app.setting.openTabById(this.host.manifest.id);
       }),
