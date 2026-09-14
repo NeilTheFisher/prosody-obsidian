@@ -34,7 +34,7 @@ var PROTOCOL_VERSION = 1;
 var CLIENT_INFO = {
   name: "prosody-obsidian",
   title: "Prosody",
-  version: "0.1.0"
+  version: "0.2.0"
 };
 var FENCES = ["prosody", "voice-sync"];
 var DEFAULT_PROMPT = 'The attached text is a voice-note transcript. Summarize it as concise markdown: a one-line gist, then the key points as bullets. If there are follow-ups or todos to check off for later, add a short "Action items" section using markdown checkboxes. Do not invent tasks. Return only the summary.';
