@@ -56,4 +56,5 @@ export const DEFAULT_SETTINGS: ProsodySettings = {
   transcriptExpanded: false,
   speakerCount: "none",
   transcriptionUrl: "http://127.0.0.1:8178",
+  transcriptionToken: "",
 };

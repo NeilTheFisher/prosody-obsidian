@@ -219,10 +219,19 @@ export class ProsodySettingsTab extends PluginSettingTab {
     this.text(
       containerEl,
       "Transcription URL",
-      "OpenAI-compatible endpoint used to (re-)transcribe audio, e.g. http://127.0.0.1:8178.",
+      "OpenAI-compatible endpoint used to (re-)transcribe audio. Use the LAN address (e.g. http://192.168.0.46:8178) so phones can reach it.",
       () => settings.transcriptionUrl,
       (value) => {
         settings.transcriptionUrl = value.trim();
+      },
+    );
+    this.text(
+      containerEl,
+      "Transcription token",
+      "Sent as a Bearer token when transcribing. Required for non-localhost requests when the server sets ORUKEET_TOKEN.",
+      () => settings.transcriptionToken,
+      (value) => {
+        settings.transcriptionToken = value.trim();
       },
     );
     this.toggle(

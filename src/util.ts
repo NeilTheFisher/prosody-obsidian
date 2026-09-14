@@ -1,3 +1,4 @@
+import { Platform } from "obsidian";
 import type { Agent, AgentEnv, ModelOption, ProsodySettings } from "./types.ts";
 
 export function winToWsl(path: string): string {
@@ -50,12 +51,20 @@ export function pickBy<T>(list: T[], predicate: (item: T) => boolean): T | null 
   return list.find(predicate) ?? list[0] ?? null;
 }
 
-/** The enabled agent selected as default, or the first enabled agent. */
+/** The enabled agent to use: the selected one, or a remote agent on mobile. */
 export function currentAgent(settings: ProsodySettings): Agent | null {
-  return pickBy(
-    settings.agents.filter((agent) => agent.enabled),
-    (agent) => agent.id === settings.defaultAgentId,
-  );
+  const enabled = settings.agents.filter((agent) => agent.enabled);
+  const selected = pickBy(enabled, (agent) => agent.id === settings.defaultAgentId);
+
+  if (selected && (Platform.isDesktopApp || isRemote(selected))) return selected;
+
+  if (!Platform.isDesktopApp) {
+    const remote = enabled.find((agent) => isRemote(agent));
+
+    if (remote) return remote;
+  }
+
+  return selected;
 }
 
 export interface ModelState {

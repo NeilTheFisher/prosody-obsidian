@@ -415,7 +415,12 @@ export class ProsodyView extends MarkdownRenderChild {
       form.append("diarize", settings.speakerCount);
 
       const url = settings.transcriptionUrl.replace(/\/+$/, "") + "/v1/audio/transcriptions";
-      const response = await fetch(url, { method: "POST", body: form });
+      const headers: Record<string, string> = {};
+
+      if (settings.transcriptionToken)
+        headers["Authorization"] = "Bearer " + settings.transcriptionToken;
+
+      const response = await fetch(url, { method: "POST", body: form, headers });
 
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 

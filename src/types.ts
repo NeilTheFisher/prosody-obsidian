@@ -80,6 +80,7 @@ export interface ProsodySettings {
   transcriptExpanded: boolean;
   speakerCount: string;
   transcriptionUrl: string;
+  transcriptionToken: string;
 }
 
 export interface SessionUpdate {
