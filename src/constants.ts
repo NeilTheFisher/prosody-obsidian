@@ -5,7 +5,7 @@ export const PROTOCOL_VERSION = 1;
 export const CLIENT_INFO = {
   name: "prosody-obsidian",
   title: "Prosody",
-  version: "0.2.0",
+  version: "0.2.1",
 } as const;
 
 export const FENCES = ["prosody", "voice-sync"] as const;
