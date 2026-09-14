@@ -98,7 +98,9 @@
   max-height: 24vh;
   overflow-y: auto;
   overflow-x: hidden;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
   scrollbar-gutter: stable;
   transition: max-height 0.22s var(--vs-ease);
 }
