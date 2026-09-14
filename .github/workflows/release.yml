@@ -13,11 +13,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Create GitHub release
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Verify tag matches manifest version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          VERSION=$(node -p "require('./manifest.json').version")
+          if [ "$TAG" != "$VERSION" ]; then
+            echo "Tag '$TAG' does not match manifest version '$VERSION'" >&2
+            exit 1
+          fi
+
+      - name: Build
+        run: bun run build
+
+      - name: Create or update release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes \
-            main.js manifest.json styles.css
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" main.js manifest.json styles.css --clobber
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --generate-notes \
+              main.js manifest.json styles.css
+          fi

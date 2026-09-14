@@ -8,7 +8,7 @@ if (!vault) {
   process.exit(1);
 }
 
-const dest = `${vault}/.obsidian/plugins/prosody-obsidian`;
+const dest = `${vault}/.obsidian/plugins/prosody`;
 
 await mkdir(dest, { recursive: true });
 

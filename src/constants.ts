@@ -3,9 +3,9 @@ import type { Agent, ProsodySettings } from "./types.ts";
 export const PROTOCOL_VERSION = 1;
 
 export const CLIENT_INFO = {
-  name: "prosody-obsidian",
+  name: "prosody",
   title: "Prosody",
-  version: "0.2.1",
+  version: "0.3.0",
 } as const;
 
 export const FENCES = ["prosody", "voice-sync"] as const;

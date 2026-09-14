@@ -32,9 +32,9 @@ var import_obsidian10 = require("obsidian");
 // src/constants.ts
 var PROTOCOL_VERSION = 1;
 var CLIENT_INFO = {
-  name: "prosody-obsidian",
+  name: "prosody",
   title: "Prosody",
-  version: "0.2.1"
+  version: "0.3.0"
 };
 var FENCES = ["prosody", "voice-sync"];
 var DEFAULT_PROMPT = 'The attached text is a voice-note transcript. Summarize it as concise markdown: a one-line gist, then the key points as bullets. If there are follow-ups or todos to check off for later, add a short "Action items" section using markdown checkboxes. Do not invent tasks. Return only the summary.';
@@ -411,7 +411,7 @@ var ProsodySettingsTab = class extends import_obsidian3.PluginSettingTab {
     this.text(
       containerEl,
       "Transcription URL",
-      "OpenAI-compatible endpoint used to (re-)transcribe audio. Use the LAN address (e.g. http://192.168.0.46:8178) so phones can reach it.",
+      "OpenAI-compatible endpoint used to (re-)transcribe audio. Use the LAN address (e.g. http://your-server:8178) so phones can reach it.",
       () => settings.transcriptionUrl,
       (value) => {
         settings.transcriptionUrl = value.trim();

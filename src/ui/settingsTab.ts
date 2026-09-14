@@ -219,7 +219,7 @@ export class ProsodySettingsTab extends PluginSettingTab {
     this.text(
       containerEl,
       "Transcription URL",
-      "OpenAI-compatible endpoint used to (re-)transcribe audio. Use the LAN address (e.g. http://192.168.0.46:8178) so phones can reach it.",
+      "OpenAI-compatible endpoint used to (re-)transcribe audio. Use the LAN address (e.g. http://your-server:8178) so phones can reach it.",
       () => settings.transcriptionUrl,
       (value) => {
         settings.transcriptionUrl = value.trim();
