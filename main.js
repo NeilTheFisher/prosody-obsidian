@@ -34,7 +34,7 @@ var PROTOCOL_VERSION = 1;
 var CLIENT_INFO = {
   name: "prosody",
   title: "Prosody",
-  version: "0.3.0"
+  version: "0.3.1"
 };
 var FENCES = ["prosody", "voice-sync"];
 var DEFAULT_PROMPT = 'The attached text is a voice-note transcript. Summarize it as concise markdown: a one-line gist, then the key points as bullets. If there are follow-ups or todos to check off for later, add a short "Action items" section using markdown checkboxes. Do not invent tasks. Return only the summary.';
@@ -914,6 +914,7 @@ function buildSection(wrap, options) {
 }
 
 // src/ui/widget.ts
+var SWIPE_THRESHOLD = 6;
 var ProsodyView = class extends import_obsidian9.MarkdownRenderChild {
   constructor(el, host, source, sourcePath) {
     super(el);
@@ -923,6 +924,8 @@ var ProsodyView = class extends import_obsidian9.MarkdownRenderChild {
     __publicField(this, "audioFile", null);
     __publicField(this, "sidecarPath", "");
     __publicField(this, "sidecar", null);
+    __publicField(this, "lastTouchY", null);
+    __publicField(this, "swipeDelta", 0);
     this.host = host;
     this.audioName = (source.trim().split("\n")[0] ?? "").trim();
     this.sourcePath = sourcePath;
@@ -957,6 +960,82 @@ var ProsodyView = class extends import_obsidian9.MarkdownRenderChild {
     this.containerEl.addClass("prosody-root");
     this.resetInheritedStyles();
     await this.render();
+    this.attachScrollChain();
+  }
+  isVerticalScroller(el) {
+    if (el.scrollHeight <= el.clientHeight + 1) return false;
+    const { overflowY } = getComputedStyle(el);
+    return overflowY === "auto" || overflowY === "scroll";
+  }
+  canScrollBy(scroller, dy) {
+    if (dy > 0) return scroller.scrollTop + scroller.clientHeight < scroller.scrollHeight - 1;
+    if (dy < 0) return scroller.scrollTop > 0;
+    return false;
+  }
+  findInnerScroller(target) {
+    let node = target instanceof HTMLElement ? target : null;
+    while (node) {
+      if (this.isVerticalScroller(node)) return node;
+      if (node === this.containerEl) break;
+      node = node.parentElement;
+    }
+    return null;
+  }
+  findScrollAncestor() {
+    let node = this.containerEl.parentElement;
+    while (node) {
+      if (this.isVerticalScroller(node)) return node;
+      node = node.parentElement;
+    }
+    const doc = this.containerEl.ownerDocument;
+    return doc.scrollingElement instanceof HTMLElement ? doc.scrollingElement : doc.body;
+  }
+  /** Hand-roll scroll chaining: Obsidian's editor scrollers swallow touch gestures. */
+  attachScrollChain() {
+    this.registerDomEvent(
+      this.containerEl,
+      "touchstart",
+      (event) => {
+        if (event.touches.length !== 1) {
+          this.lastTouchY = null;
+          return;
+        }
+        this.lastTouchY = event.touches[0].clientY;
+        this.swipeDelta = 0;
+      },
+      { passive: true }
+    );
+    this.registerDomEvent(
+      this.containerEl,
+      "touchmove",
+      (event) => {
+        if (this.lastTouchY === null || event.touches.length !== 1) return;
+        const currentY = event.touches[0].clientY;
+        const dy = this.lastTouchY - currentY;
+        this.lastTouchY = currentY;
+        if (dy === 0) return;
+        this.swipeDelta += dy;
+        if (Math.abs(this.swipeDelta) < SWIPE_THRESHOLD) return;
+        const inner = this.findInnerScroller(event.target);
+        if (inner && this.canScrollBy(inner, dy)) {
+          inner.scrollTop += dy;
+          event.preventDefault();
+          return;
+        }
+        const ancestor = this.findScrollAncestor();
+        if (ancestor) {
+          ancestor.scrollTop += dy;
+          event.preventDefault();
+        }
+      },
+      { passive: false }
+    );
+    const reset = () => {
+      this.lastTouchY = null;
+      this.swipeDelta = 0;
+    };
+    this.registerDomEvent(this.containerEl, "touchend", reset);
+    this.registerDomEvent(this.containerEl, "touchcancel", reset);
   }
   async render() {
     this.containerEl.empty();

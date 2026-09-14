@@ -14,6 +14,8 @@ import { openModelPicker } from "./modelPicker.js";
 import { ProsodyModal } from "./modal.js";
 import { buildSection, type Section, type SectionOptions } from "./section.js";
 
+const SWIPE_THRESHOLD = 6;
+
 export class ProsodyView extends MarkdownRenderChild {
   private host: PluginHost;
   private audioName: string;
@@ -21,6 +23,8 @@ export class ProsodyView extends MarkdownRenderChild {
   private audioFile: TFile | null = null;
   private sidecarPath = "";
   private sidecar: Sidecar | null = null;
+  private lastTouchY: number | null = null;
+  private swipeDelta = 0;
 
   constructor(el: HTMLElement, host: PluginHost, source: string, sourcePath: string) {
     super(el);
@@ -65,6 +69,114 @@ export class ProsodyView extends MarkdownRenderChild {
     this.containerEl.addClass("prosody-root");
     this.resetInheritedStyles();
     await this.render();
+    this.attachScrollChain();
+  }
+
+  private isVerticalScroller(el: HTMLElement): boolean {
+    if (el.scrollHeight <= el.clientHeight + 1) return false;
+
+    const { overflowY } = getComputedStyle(el);
+
+    return overflowY === "auto" || overflowY === "scroll";
+  }
+
+  private canScrollBy(scroller: HTMLElement, dy: number): boolean {
+    if (dy > 0) return scroller.scrollTop + scroller.clientHeight < scroller.scrollHeight - 1;
+
+    if (dy < 0) return scroller.scrollTop > 0;
+
+    return false;
+  }
+
+  private findInnerScroller(target: EventTarget | null): HTMLElement | null {
+    let node = target instanceof HTMLElement ? target : null;
+
+    while (node) {
+      if (this.isVerticalScroller(node)) return node;
+
+      if (node === this.containerEl) break;
+
+      node = node.parentElement;
+    }
+
+    return null;
+  }
+
+  private findScrollAncestor(): HTMLElement | null {
+    let node = this.containerEl.parentElement;
+
+    while (node) {
+      if (this.isVerticalScroller(node)) return node;
+
+      node = node.parentElement;
+    }
+
+    const doc = this.containerEl.ownerDocument;
+
+    return doc.scrollingElement instanceof HTMLElement ? doc.scrollingElement : doc.body;
+  }
+
+  /** Hand-roll scroll chaining: Obsidian's editor scrollers swallow touch gestures. */
+  private attachScrollChain(): void {
+    this.registerDomEvent(
+      this.containerEl,
+      "touchstart",
+      (event: TouchEvent) => {
+        if (event.touches.length !== 1) {
+          this.lastTouchY = null;
+
+          return;
+        }
+
+        this.lastTouchY = event.touches[0].clientY;
+        this.swipeDelta = 0;
+      },
+      { passive: true },
+    );
+
+    this.registerDomEvent(
+      this.containerEl,
+      "touchmove",
+      (event: TouchEvent) => {
+        if (this.lastTouchY === null || event.touches.length !== 1) return;
+
+        const currentY = event.touches[0].clientY;
+        const dy = this.lastTouchY - currentY;
+
+        this.lastTouchY = currentY;
+
+        if (dy === 0) return;
+
+        this.swipeDelta += dy;
+
+        if (Math.abs(this.swipeDelta) < SWIPE_THRESHOLD) return;
+
+        const inner = this.findInnerScroller(event.target);
+
+        if (inner && this.canScrollBy(inner, dy)) {
+          inner.scrollTop += dy;
+          event.preventDefault();
+
+          return;
+        }
+
+        const ancestor = this.findScrollAncestor();
+
+        if (ancestor) {
+          ancestor.scrollTop += dy;
+          event.preventDefault();
+        }
+      },
+      { passive: false },
+    );
+
+    const reset = () => {
+      this.lastTouchY = null;
+      this.swipeDelta = 0;
+    };
+
+    this.registerDomEvent(this.containerEl, "touchend", reset);
+    this.registerDomEvent(this.containerEl, "touchcancel", reset);
   }
 
   private async render(): Promise<void> {
